@@ -1193,9 +1193,13 @@ function renderOuPanel(ou, allSubsections, allLinks) {
 function isModalUrl(url){
   if (!url) return false;
   if (url.indexOf('checkbox.ai') !== -1 && url.indexOf('ticketing/portal') === -1) return true; // Checkbox forms (not the dashboard portal — that's embedded inline)
-  if (url.indexOf('mypepsico.com') !== -1) return true; // MyPepsiCo / ServiceNow pages
   if (url.indexOf('legalgateway.com.au') !== -1) return true; // Plexus
   return false;
+  // Note: mypepsico.com (ServiceNow) was tried and confirmed blocked —
+  // it sends a header that refuses framing outright ("refused to connect").
+  // This is a server-side restriction, not fixable from here, and applies
+  // to every page on that domain regardless of URL — do not re-add it
+  // without an official embeddable/widget URL from that platform first.
 }
 
 function wireClickTracking(links) {
