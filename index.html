@@ -116,6 +116,13 @@ nav a {
   transition: background var(--t), color var(--t), border-color var(--t);
 }
 nav a:hover { background: rgba(255,255,255,0.18); color: #fff; border-color: rgba(255,255,255,0.24); }
+.nav-admin {
+  background: var(--pep-blue) !important;
+  border-color: var(--pep-blue) !important;
+  color: #fff !important;
+  margin-left: 6px;
+}
+.nav-admin:hover { background: var(--pep-blue-mid) !important; border-color: var(--pep-blue-mid) !important; }
 
 /* ─── HERO ─── */
 .hero {
@@ -829,6 +836,7 @@ header { padding: 8px 0; }
       <a href="/newsletter/">Newsletter</a>
       <a href="#" onclick="openOrgModal();return false;">Our Team</a>
       <a href="#" onclick="toggleChat();return false;">Legal AI</a>
+      <a href="/admin/" class="nav-admin" title="Admin login — for authorized Legal team members">Admin / Sign in</a>
     </nav>
   </div>
 </header>
