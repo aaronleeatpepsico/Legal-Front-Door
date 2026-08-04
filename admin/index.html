@@ -119,6 +119,17 @@ table.analytics tr:last-child td{border-bottom:none;}
 .editable-card input,.editable-card select,.editable-card textarea{width:100%;padding:7px 9px;border:1px solid var(--border-mid);border-radius:6px;font-family:inherit;font-size:12.5px;color:var(--text-body);}
 .editable-card .row-actions{display:flex;flex-direction:column;gap:4px;flex-shrink:0;padding-top:4px;}
 .field-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:2px;display:block;}
+
+/* ── NEWSLETTER FILE UPLOADS ── */
+.thumb-row{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 8px;min-height:2px;}
+.thumb{position:relative;width:64px;height:80px;border-radius:6px;overflow:hidden;border:1px solid var(--border-mid);cursor:grab;background:var(--off-white);flex-shrink:0;}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.thumb-pdf{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:0.04em;}
+.thumb-delete{position:absolute;top:2px;right:2px;width:16px;height:16px;border:none;border-radius:4px;background:rgba(2,53,90,0.75);color:#fff;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
+.thumb-delete:hover{background:#b02020;}
+.upload-zone{display:inline-block;padding:7px 12px;border:1.5px dashed var(--border-mid);border-radius:8px;font-size:12px;color:var(--pep-blue);cursor:pointer;transition:border-color var(--t),background var(--t);}
+.upload-zone:hover{border-color:var(--pep-blue);background:var(--off-white);}
+.upload-status{font-size:11px;color:var(--text-muted);margin-top:4px;}
 </style>
 </head>
 <body>
@@ -513,23 +524,50 @@ document.getElementById('addToolBtn').addEventListener('click', async () => {
 async function loadNewsletterTab(){
   const body = document.getElementById('newsletterBody');
   body.innerHTML = 'Loading…';
-  const { data, error } = await sb.from('newsletter_items').select('*').order('sort_order');
-  if (error) { body.innerHTML = 'Could not load newsletter items: ' + escHtml(error.message); return; }
+  const [itemsRes, imagesRes] = await Promise.all([
+    sb.from('newsletter_items').select('*').order('sort_order'),
+    sb.from('newsletter_images').select('*').order('sort_order'),
+  ]);
+  if (itemsRes.error) { body.innerHTML = 'Could not load newsletter items: ' + escHtml(itemsRes.error.message); return; }
+  const data = itemsRes.data;
+  const imagesByItem = {};
+  (imagesRes.data || []).forEach(img => {
+    (imagesByItem[img.newsletter_item_id] = imagesByItem[img.newsletter_item_id] || []).push(img);
+  });
   if (!data.length) { body.innerHTML = '<div class="empty-hint">No newsletter items yet.</div>'; return; }
-  body.innerHTML = data.map(newsCardHtml).join('');
-  body.querySelectorAll('.editable-card').forEach(wireNewsCard);
+  body.innerHTML = data.map(n => newsCardHtml(n, imagesByItem[n.id] || [])).join('');
+  body.querySelectorAll('.editable-card').forEach(card => wireNewsCard(card));
+  body.querySelectorAll('.thumb-row').forEach(row => {
+    enableDragReorder(row, '.thumb', 'newsletter_images', () => loadNewsletterTab());
+  });
   enableDragReorder(body, '.editable-card', 'newsletter_items', () => loadNewsletterTab());
 }
 
-function newsCardHtml(n){
+function newsCardHtml(n, images){
+  const thumbsHtml = images.map(img =>
+    '<div class="thumb" data-id="' + img.id + '">' +
+      (img.file_type === 'pdf'
+        ? '<div class="thumb-pdf">PDF</div>'
+        : '<img src="' + escHtml(img.url) + '" alt="">') +
+      '<button class="thumb-delete" data-delete-image="' + img.id + '" title="Remove">\u2715</button>' +
+    '</div>'
+  ).join('');
   return '<div class="editable-card" data-id="' + n.id + '">' +
     '<span class="drag-handle">\u2807\u2807</span>' +
     '<div class="fields">' +
       '<div><span class="field-label">Issue label</span><input class="f-issue" value="' + escHtml(n.issue_label||'') + '"></div>' +
       '<div><span class="field-label">Date label</span><input class="f-date" value="' + escHtml(n.date_label||'') + '"></div>' +
       '<div style="grid-column:1/-1"><span class="field-label">Title</span><input class="f-title" value="' + escHtml(n.title) + '"></div>' +
-      '<div style="grid-column:1/-1"><span class="field-label">Read-more URL (optional)</span><input class="f-url" value="' + escHtml(n.url||'') + '"></div>' +
-      '<div style="grid-column:1/-1"><span class="field-label">Excerpt</span><textarea class="f-excerpt">' + escHtml(n.excerpt||'') + '</textarea></div>' +
+      '<div style="grid-column:1/-1"><span class="field-label">Excerpt (short teaser shown on the homepage carousel)</span><textarea class="f-excerpt">' + escHtml(n.excerpt||'') + '</textarea></div>' +
+      '<div style="grid-column:1/-1">' +
+        '<span class="field-label">Newsletter pages (PNG/JPG/PDF — drag to reorder, upload multiple for a multi-page issue)</span>' +
+        '<div class="thumb-row" data-item-id="' + n.id + '">' + thumbsHtml + '</div>' +
+        '<label class="upload-zone"><input type="file" class="f-upload" accept="image/png,image/jpeg,application/pdf" multiple style="display:none;"> + Upload images or PDF</label>' +
+        '<div class="upload-status"></div>' +
+      '</div>' +
+      '<div style="grid-column:1/-1"><span class="field-label">Full article text (optional — used if you don\u2019t upload pages, or as alt fallback)</span><textarea class="f-body" style="min-height:70px;">' + escHtml(n.body||'') + '</textarea></div>' +
+      '<div style="grid-column:1/-1"><span class="field-label">Original source URL (optional, shown as a link on the article page)</span><input class="f-url" value="' + escHtml(n.url||'') + '"></div>' +
+      '<div style="grid-column:1/-1"><label style="display:flex;align-items:center;gap:6px;font-size:12.5px;"><input type="checkbox" class="f-published"' + (n.published !== false ? ' checked' : '') + ' style="width:auto;"> Published (visible on site)</label></div>' +
     '</div>' +
     '<div class="row-actions"><button class="icon-btn" data-save title="Save">\ud83d\udcbe</button><button class="icon-btn" data-delete title="Delete">\ud83d\uddd1</button></div>' +
   '</div>';
@@ -544,23 +582,55 @@ function wireNewsCard(card){
       title: card.querySelector('.f-title').value.trim(),
       url: card.querySelector('.f-url').value.trim() || null,
       excerpt: card.querySelector('.f-excerpt').value.trim() || null,
+      body: card.querySelector('.f-body').value.trim() || null,
+      published: card.querySelector('.f-published').checked,
       updated_at: new Date().toISOString(),
     };
     const { error } = await sb.from('newsletter_items').update(payload).eq('id', id);
     flashRow(card, error ? 'Error' : 'Saved');
   });
   card.querySelector('[data-delete]').addEventListener('click', async () => {
-    if (!confirm('Delete this newsletter item?')) return;
+    if (!confirm('Delete this newsletter item? This also removes its uploaded pages.')) return;
     await sb.from('newsletter_items').delete().eq('id', id);
+    loadNewsletterTab();
+  });
+  card.querySelectorAll('[data-delete-image]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const imgId = btn.getAttribute('data-delete-image');
+      await sb.from('newsletter_images').delete().eq('id', imgId);
+      loadNewsletterTab();
+    });
+  });
+  const fileInput = card.querySelector('.f-upload');
+  const statusEl = card.querySelector('.upload-status');
+  fileInput.addEventListener('change', async () => {
+    const files = Array.from(fileInput.files || []);
+    if (!files.length) return;
+    const existingCount = card.querySelectorAll('.thumb').length;
+    statusEl.textContent = 'Uploading ' + files.length + ' file' + (files.length===1?'':'s') + '…';
+    let i = existingCount;
+    for (const file of files) {
+      const path = id + '/' + Date.now() + '-' + i + '-' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const { error: upErr } = await sb.storage.from('newsletter-assets').upload(path, file);
+      if (upErr) { statusEl.textContent = 'Upload failed: ' + upErr.message; return; }
+      const { data: urlData } = sb.storage.from('newsletter-assets').getPublicUrl(path);
+      const fileType = file.type === 'application/pdf' ? 'pdf' : 'image';
+      await sb.from('newsletter_images').insert({
+        newsletter_item_id: id, url: urlData.publicUrl, file_type: fileType, sort_order: i
+      });
+      i++;
+    }
+    statusEl.textContent = '';
     loadNewsletterTab();
   });
 }
 
+
 document.getElementById('addNewsBtn').addEventListener('click', async () => {
   const { data } = await sb.from('newsletter_items').select('id');
   await sb.from('newsletter_items').insert({
-    issue_label: 'Newsletter · Issue', title: 'New article', excerpt: '',
-    date_label: 'Coming soon', sort_order: (data||[]).length
+    issue_label: 'Newsletter · Issue', title: 'New article', excerpt: '', body: '',
+    date_label: 'Coming soon', published: false, sort_order: (data||[]).length
   });
   loadNewsletterTab();
 });
