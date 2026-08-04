@@ -102,18 +102,20 @@ header {
   text-transform: uppercase;
   margin-top: 3px;
 }
-nav { display: flex; align-items: center; gap: 2px; }
+nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; row-gap: 6px; }
 nav a {
   font-size: 12px;
   font-weight: 500;
-  color: rgba(255,255,255,0.6);
+  color: rgba(255,255,255,0.85);
   text-decoration: none;
   padding: 7px 14px;
   border-radius: 100px;
   letter-spacing: 0.02em;
-  transition: background var(--t), color var(--t);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  transition: background var(--t), color var(--t), border-color var(--t);
 }
-nav a:hover { background: rgba(255,255,255,0.1); color: #fff; }
+nav a:hover { background: rgba(255,255,255,0.18); color: #fff; border-color: rgba(255,255,255,0.24); }
 
 /* ─── HERO ─── */
 .hero {
@@ -706,11 +708,13 @@ footer {
 .tools-section { animation: fadeUp 0.5s 0.1s ease both; }
 
 /* ─── RESPONSIVE ─── */
+header { padding: 8px 0; }
+.header-inner { height: auto; min-height: 62px; flex-wrap: wrap; row-gap: 10px; }
 @media(max-width:900px) {
   .header-inner,.section { padding-left: 20px; padding-right: 20px; }
   .hero { padding: 32px 20px 40px; }
   .tools-grid,.ou-grid { grid-template-columns: 1fr 1fr; }
-  nav { display: none; }
+  nav { width: 100%; justify-content: flex-start; }
   footer { padding: 24px 20px; }
   .footer-inner { flex-direction: column; gap: 8px; align-items: flex-start; }
 }
@@ -804,7 +808,7 @@ footer {
 
       </div>
     </div>
-    <nav>
+    <nav id="mainNav">
       <a href="#ous">Operating Units</a>
       <a href="/newsletter/">Newsletter</a>
       <a href="#" onclick="openOrgModal();return false;">Our Team</a>
@@ -927,7 +931,8 @@ footer {
 </div>
 
 <style>
-#chat-widget{position:fixed;right:24px;bottom:24px;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;}
+#chat-widget{position:fixed;right:24px;bottom:24px;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;pointer-events:none;}
+#chat-fab{pointer-events:auto;}
 #chat-panel{width:430px;height:720px;background:#fff;border-radius:28px;overflow:hidden;border:1px solid rgba(0,0,0,.08);box-shadow:0 4px 8px rgba(2,53,90,.08), 0 16px 32px rgba(2,53,90,.14);margin-bottom:12px;opacity:0;pointer-events:none;transform:translateY(10px) scale(.96);transition:.25s ease;}
 #chat-widget.open #chat-panel{opacity:1;pointer-events:auto;transform:translateY(0) scale(1);}
 .cp-head{height:72px;background:#02355A;color:#fff;padding:0 18px;display:flex;align-items:center;justify-content:space-between;}
