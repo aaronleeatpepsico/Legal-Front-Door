@@ -787,7 +787,23 @@ header { padding: 8px 0; }
 <script>
 (function(){
   var intro=document.getElementById('intro'),logo=document.getElementById('idLogo'),words=document.getElementById('idWords'),gone=false;
-  function dismiss(){if(gone)return;gone=true;intro.classList.add('fade-out');setTimeout(function(){intro.style.display='none';document.body.style.overflow='';},1200);}
+
+  // Only play the splash once per browser session — e.g. clicking the logo
+  // to return home shouldn't replay it every time.
+  var alreadySeen = false;
+  try { alreadySeen = sessionStorage.getItem('introSeen') === '1'; } catch(e) { /* storage may be blocked; fall back to always showing it */ }
+
+  if (alreadySeen) {
+    intro.style.display = 'none';
+    return;
+  }
+
+  function dismiss(){
+    if(gone)return;gone=true;
+    intro.classList.add('fade-out');
+    try { sessionStorage.setItem('introSeen', '1'); } catch(e) {}
+    setTimeout(function(){intro.style.display='none';document.body.style.overflow='';},1200);
+  }
   setTimeout(function(){logo.style.opacity='1';logo.style.transform='translateY(0)';},180);
   setTimeout(function(){words.style.opacity='1';words.style.transform='translateY(0)';},340);
   setTimeout(dismiss,2400);
@@ -810,7 +826,6 @@ header { padding: 8px 0; }
       </div>
     </a>
     <nav id="mainNav">
-      <a href="#ous">Operating Units</a>
       <a href="/newsletter/">Newsletter</a>
       <a href="#" onclick="openOrgModal();return false;">Our Team</a>
       <a href="#" onclick="toggleChat();return false;">Legal AI</a>
