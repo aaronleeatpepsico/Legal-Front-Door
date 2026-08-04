@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Newsletter — PepsiCo APAC Legal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,300;0,400;0,500;0,600;0,700;0,900;1,300;1,400&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+:root {
+  --pep-navy: #02355A; --pep-blue: #3680CE;
+  --off-white: #f9f7f1; --page-bg: #e8f1fa;
+  --border: rgba(2,53,90,0.1); --border-mid: rgba(2,53,90,0.18);
+  --text-body: #2c4a62; --text-muted: #7a9ab8;
+  --radius-md: 12px; --radius-lg: 18px;
+  --t: 220ms cubic-bezier(0.4,0,0.2,1);
+  --font-head: 'Poppins','Barlow','Arial',sans-serif;
+  --font-body: 'Poppins','Barlow','Arial',sans-serif;
+}
+body { font-family: var(--font-body); background: var(--page-bg); color: var(--text-body); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+
+header { background: var(--pep-navy); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.header-inner { padding: 0 64px; height: 62px; display: flex; align-items: center; justify-content: space-between; }
+.header-title { font-family: var(--font-head); font-weight: 500; font-size: 16px; color: #fff; letter-spacing: 0.04em; text-transform: uppercase; }
+nav { display: flex; align-items: center; gap: 2px; }
+nav a { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.6); text-decoration: none; padding: 7px 14px; border-radius: 100px; letter-spacing: 0.02em; transition: background var(--t), color var(--t); }
+nav a:hover, nav a.active { background: rgba(255,255,255,0.1); color: #fff; }
+
+main { max-width: 720px; margin: 0 auto; padding: 56px 24px 80px; }
+.back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--pep-blue); text-decoration: none; margin-bottom: 28px; }
+.back-link:hover { text-decoration: underline; }
+.article-tag { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pep-blue); margin-bottom: 12px; }
+.article-title { font-family: var(--font-head); font-weight: 600; font-size: clamp(24px,3.4vw,34px); color: var(--pep-navy); letter-spacing: -0.01em; margin-bottom: 10px; }
+.article-date { font-size: 13px; color: var(--text-muted); margin-bottom: 32px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+.article-body p { margin-bottom: 18px; font-size: 15.5px; color: var(--text-body); line-height: 1.75; }
+.article-source { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border); }
+.article-source a { color: var(--pep-blue); font-size: 13px; font-weight: 600; text-decoration: none; }
+.article-source a:hover { text-decoration: underline; }
+.empty-hint { text-align: center; padding: 60px 24px; color: var(--text-muted); font-size: 14px; }
+
+footer { background: var(--pep-navy); border-top: 1px solid rgba(255,255,255,0.06); padding: 28px 64px; }
+.footer-inner { display: flex; align-items: center; justify-content: space-between; }
+.footer-l { font-size: 12px; font-weight: 300; color: rgba(255,255,255,0.4); }
+.footer-r { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.25); letter-spacing: 0.08em; text-transform: uppercase; }
+
+@media (max-width: 720px) {
+  .header-inner, footer { padding-left: 20px; padding-right: 20px; }
+  nav { display: none; }
+  .footer-inner { flex-direction: column; gap: 8px; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-title">PepsiCo APAC Legal</div>
+    <nav>
+      <a href="/#ous">Operating Units</a>
+      <a href="/newsletter/" class="active">Newsletter</a>
+      <a href="/#" onclick="window.location='/';return false;">Our Team</a>
+      <a href="/#" onclick="window.location='/';return false;">Legal AI</a>
+    </nav>
+  </div>
+</header>
+
+<main id="articleMain">
+  <a class="back-link" href="/newsletter/">← Back to Newsletter</a>
+  <div class="empty-hint">Loading…</div>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-l">PepsiCo APAC Legal Front Door · For internal use only · © <span id="footerYear">2025</span> PepsiCo</div>
+    <div class="footer-r">Legal Operations · APAC</div>
+  </div>
+</footer>
+
+<script>
+document.getElementById('footerYear').textContent = new Date().getFullYear();
+
+const SUPABASE_URL = 'https://pweqaibadpahfprqhjdg.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_SumS4TPFIvwTvjk1VdYiwQ_LjVEDQ7l';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function escHtml(s){ if(s===null||s===undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+async function loadArticle(){
+  const main = document.getElementById('articleMain');
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (!id) {
+    main.innerHTML = '<a class="back-link" href="/newsletter/">\u2190 Back to Newsletter</a><div class="empty-hint">No article specified.</div>';
+    return;
+  }
+  const { data, error } = await sb.from('newsletter_items').select('*').eq('id', id).maybeSingle();
+  if (error || !data) {
+    main.innerHTML = '<a class="back-link" href="/newsletter/">\u2190 Back to Newsletter</a><div class="empty-hint">Article not found — it may have been removed.</div>';
+    if (error) console.error(error);
+    return;
+  }
+  document.title = data.title + ' — PepsiCo APAC Legal';
+  const bodyHtml = (data.body || data.excerpt || '')
+    .split(/\n\s*\n/)
+    .filter(p => p.trim())
+    .map(p => '<p>' + escHtml(p.trim()) + '</p>')
+    .join('');
+  main.innerHTML =
+    '<a class="back-link" href="/newsletter/">\u2190 Back to Newsletter</a>' +
+    '<div class="article-tag">' + escHtml(data.issue_label || '') + '</div>' +
+    '<h1 class="article-title">' + escHtml(data.title) + '</h1>' +
+    '<div class="article-date">' + escHtml(data.date_label || '') + '</div>' +
+    '<div class="article-body">' + (bodyHtml || '<p>Full article content coming soon.</p>') + '</div>' +
+    (data.url ? '<div class="article-source"><a href="' + escHtml(data.url) + '" target="_blank" rel="noopener">View original source \u2192</a></div>' : '');
+}
+loadArticle();
+</script>
+</body>
+</html>
