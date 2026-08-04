@@ -1133,14 +1133,14 @@ function renderSubsection(ouSlug, sub, allLinks) {
 
   // APAC PO1 → Matters: the Requestor Portal is embedded inline below instead of
   // being a click-through tile, so drop that specific link from the list here.
-  const isApacMatters = ouSlug === 'apac' && sub.name.trim().toLowerCase() === 'matters';
-  if (isApacMatters) {
+  const showsRequestorPortal = (ouSlug === 'apac' || ouSlug === 'af') && sub.name.trim().toLowerCase() === 'matters';
+  if (showsRequestorPortal) {
     subLinks = subLinks.filter(function(l){ return !(l.url && l.url.indexOf('checkbox.ai/app/ticketing/portal') !== -1); });
   }
 
   const subId = ouSlug + '-' + slugify(sub.name);
   const countLabel = subLinks.length + (subLinks.length === 1 ? ' item' : ' items');
-  const embedHtml = isApacMatters
+  const embedHtml = showsRequestorPortal
     ? '<div class="embedded-portal">'
       + '<div class="embedded-portal-label">'
         + '<svg class="icon" width="14" height="14"><use href="#i-link"></use></svg> Requestor Portal'
@@ -1201,6 +1201,19 @@ function wireClickTracking(links) {
       ou_slug: panelEl ? panelEl.id.replace('panel-', '') : null,
       session_id: CLICK_SESSION_ID
     }).then(function(res){ if (res.error) console.warn('click log failed', res.error); });
+
+    // Checkbox assessment forms (one-time submissions, not the dashboard-style
+    // ticketing portal — that one's embedded inline separately) open in an
+    // in-site modal instead of navigating away, unless the person explicitly
+    // asked for a new tab (middle-click / cmd+click / ctrl+click).
+    const isCheckboxForm = link.url
+      && link.url.indexOf('checkbox.ai') !== -1
+      && link.url.indexOf('ticketing/portal') === -1;
+    const wantsNewTab = e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0;
+    if (isCheckboxForm && !wantsNewTab) {
+      e.preventDefault();
+      openCheckboxModal(link.url, link.label);
+    }
   });
 }
 
@@ -1573,6 +1586,26 @@ frame();
 #fbo.open #fbm{transform:scale(1) translateY(0);}
 .fbb{flex:1;overflow:auto;background:#fff;}
 .fbb iframe{width:100%;height:100%;border:0;display:block;}
+
+#cbo {
+  position:fixed;inset:0;z-index:800;
+  background:rgba(2,53,90,0.55);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.25s ease;
+}
+#cbo.open{opacity:1;pointer-events:all;}
+#cbm{
+  background:#f0f4f8;border-radius:16px;
+  box-shadow:0 32px 80px rgba(2,53,90,0.22);
+  width:96vw;max-width:1040px;height:90vh;max-height:920px;
+  display:flex;flex-direction:column;overflow:hidden;
+  transform:scale(0.96) translateY(12px);
+  transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+#cbo.open #cbm{transform:scale(1) translateY(0);}
+#cbm .fbb iframe{width:100%;height:100%;border:0;display:block;}
+@media(max-width:700px){ #cbm{width:100vw;height:100vh;max-height:none;border-radius:0;} }
 .fb-placeholder{
   height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
   text-align:center;padding:40px;color:var(--text-muted);
@@ -1581,6 +1614,27 @@ frame();
 .fb-placeholder-title{font-family:var(--font-head);font-weight:500;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:var(--pep-navy);margin-bottom:8px;}
 .fb-placeholder-desc{font-size:12px;font-weight:300;max-width:340px;line-height:1.6;}
 </style>
+
+<div id="cbo" onclick="if(event.target===this)closeCheckboxModal()">
+  <div id="cbm">
+    <div class="omh">
+      <div style="display:flex;align-items:center;">
+        <div class="omt" id="cboTitle">Checkbox</div>
+        <span class="omhi">Completes without leaving the Front Door</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <a id="cboOpenTab" href="#" target="_blank" rel="noopener" style="font-size:12px;font-weight:600;color:var(--pep-blue);text-decoration:none;">Open in new tab ↗</a>
+        <button class="omc" onclick="closeCheckboxModal()">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 1l9 9M10 1L1 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          Close
+        </button>
+      </div>
+    </div>
+    <div class="fbb">
+      <iframe id="cboFrame" src="about:blank" frameborder="0" allowfullscreen webkitallowfullscreen mozallowfullscreen msallowfullscreen title="Checkbox form"></iframe>
+    </div>
+  </div>
+</div>
 
 <div id="fbo" onclick="if(event.target===this)closeFeedbackModal()">
   <div id="fbm">
@@ -1959,7 +2013,21 @@ function openOrgModal(){document.getElementById('omo').classList.add('open');doc
 function openFeedbackModal(){document.getElementById('fbo').classList.add('open');document.body.style.overflow='hidden';}
 function closeFeedbackModal(){document.getElementById('fbo').classList.remove('open');document.body.style.overflow='';}
 function closeOrgModal(){document.getElementById('omo').classList.remove('open');document.body.style.overflow='';}
-document.addEventListener('keydown',function(e){if(e.key==='Escape')closeOrgModal();});
+function openCheckboxModal(url, title){
+  document.getElementById('cboFrame').src = url;
+  document.getElementById('cboTitle').textContent = title || 'Checkbox';
+  document.getElementById('cboOpenTab').href = url;
+  document.getElementById('cbo').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeCheckboxModal(){
+  document.getElementById('cbo').classList.remove('open');
+  document.body.style.overflow = '';
+  // Reset the iframe so a half-filled form doesn't silently persist in the
+  // background, and so re-opening always starts fresh.
+  document.getElementById('cboFrame').src = 'about:blank';
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeOrgModal();closeFeedbackModal();closeCheckboxModal();}});
 </script>
 <script>
 (function(){
