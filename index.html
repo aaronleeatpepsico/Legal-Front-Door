@@ -654,6 +654,14 @@ nav a:hover { background: rgba(255,255,255,0.18); color: #fff; border-color: rgb
 
 /* ─── LINK ITEMS ─── */
 .link-group { display: flex; flex-direction: column; gap: 6px; }
+
+.embedded-portal { margin-top: 16px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: #fff; }
+.embedded-portal-label { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #f5f8fb; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--pep-navy); letter-spacing: 0.02em; }
+.embedded-portal-label .icon { width: 14px; height: 14px; opacity: 0.6; }
+.embedded-portal-openlink { margin-left: auto; font-size: 11px; font-weight: 500; color: var(--pep-blue); text-decoration: none; }
+.embedded-portal-openlink:hover { text-decoration: underline; }
+.embedded-portal-frame { display: block; width: 100%; height: 640px; border: none; background: #fff; }
+@media(max-width:600px) { .embedded-portal-frame { height: 520px; } }
 .link-item {
   display: flex; align-items: flex-start; gap: 12px;
   padding: 11px 14px;
@@ -1120,17 +1128,37 @@ async function reportBrokenLink(btn) {
 }
 
 function renderSubsection(ouSlug, sub, allLinks) {
-  const subLinks = allLinks.filter(function(l){ return l.subsection_id === sub.id; })
-                            .sort(function(a,b){ return a.sort_order - b.sort_order; });
+  let subLinks = allLinks.filter(function(l){ return l.subsection_id === sub.id; })
+                          .sort(function(a,b){ return a.sort_order - b.sort_order; });
+
+  // APAC PO1 → Matters: the Requestor Portal is embedded inline below instead of
+  // being a click-through tile, so drop that specific link from the list here.
+  const isApacMatters = ouSlug === 'apac' && sub.name.trim().toLowerCase() === 'matters';
+  if (isApacMatters) {
+    subLinks = subLinks.filter(function(l){ return !(l.url && l.url.indexOf('checkbox.ai/app/ticketing/portal') !== -1); });
+  }
+
   const subId = ouSlug + '-' + slugify(sub.name);
   const countLabel = subLinks.length + (subLinks.length === 1 ? ' item' : ' items');
+  const embedHtml = isApacMatters
+    ? '<div class="embedded-portal">'
+      + '<div class="embedded-portal-label">'
+        + '<svg class="icon" width="14" height="14"><use href="#i-link"></use></svg> Requestor Portal'
+        + '<a href="https://pepsico.checkbox.ai/app/ticketing/portal?source=platform" target="_blank" rel="noopener" class="embedded-portal-openlink">Open in new tab ↗</a>'
+      + '</div>'
+      + '<iframe class="embedded-portal-frame" src="https://pepsico.checkbox.ai/app/ticketing/portal?source=platform" loading="lazy" title="Checkbox Requestor Portal"></iframe>'
+      + '</div>'
+    : '';
+
   return '<div class="subsection" id="' + escHtml(subId) + '">'
     + '<button class="sub-trigger" onclick="toggleSub(\'' + subId + '\')"><span class="sub-name">' + escHtml(sub.name) + '</span>'
     + '<span class="sub-count">' + countLabel + '</span>'
     + '<div class="sub-chev"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div></button>'
     + '<div class="sub-body"><div class="link-group">'
     + subLinks.map(renderLinkItem).join('')
-    + '</div></div></div>';
+    + '</div>'
+    + embedHtml
+    + '</div></div>';
 }
 
 function renderOuCard(ou) {
