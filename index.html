@@ -1187,6 +1187,17 @@ function renderOuPanel(ou, allSubsections, allLinks) {
     + '</div></div>';
 }
 
+// Single source of truth for "which external destinations open in the
+// in-site modal instead of a new tab." Add new domains/paths here only —
+// both link and tool click handlers use this same function.
+function isModalUrl(url){
+  if (!url) return false;
+  if (url.indexOf('checkbox.ai') !== -1 && url.indexOf('ticketing/portal') === -1) return true; // Checkbox forms (not the dashboard portal — that's embedded inline)
+  if (url.indexOf('mypepsico.com') !== -1) return true; // MyPepsiCo / ServiceNow pages
+  if (url.indexOf('legalgateway.com.au') !== -1) return true; // Plexus
+  return false;
+}
+
 function wireClickTracking(links) {
   const byId = {};
   links.forEach(function(l){ byId[l.id] = l; });
@@ -1202,22 +1213,17 @@ function wireClickTracking(links) {
       session_id: CLICK_SESSION_ID
     }).then(function(res){ if (res.error) console.warn('click log failed', res.error); });
 
-    // Checkbox assessment forms (one-time submissions, not the dashboard-style
-    // ticketing portal — that one's embedded inline separately) open in an
-    // in-site modal instead of navigating away, unless the person explicitly
-    // asked for a new tab (middle-click / cmd+click / ctrl+click).
-    const isCheckboxForm = link.url
-      && link.url.indexOf('checkbox.ai') !== -1
-      && link.url.indexOf('ticketing/portal') === -1;
     const wantsNewTab = e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0;
-    if (isCheckboxForm && !wantsNewTab) {
+    if (isModalUrl(link.url) && !wantsNewTab) {
       e.preventDefault();
       openCheckboxModal(link.url, link.label);
     }
   });
 }
 
-function wireToolClickTracking() {
+function wireToolClickTracking(tools) {
+  const byId = {};
+  (tools || []).forEach(function(t){ byId[t.id] = t; });
   const wrap = document.getElementById('sidebarTools');
   if (!wrap) return;
   wrap.addEventListener('click', function(e){
@@ -1227,6 +1233,14 @@ function wireToolClickTracking() {
       tool_id: item.getAttribute('data-tool-id'),
       session_id: CLICK_SESSION_ID
     }).then(function(res){ if (res.error) console.warn('tool click log failed', res.error); });
+
+    const tool = byId[item.getAttribute('data-tool-id')];
+    if (!tool || !tool.url) return;
+    const wantsNewTab = e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0;
+    if (isModalUrl(tool.url) && !wantsNewTab) {
+      e.preventDefault();
+      openCheckboxModal(tool.url, tool.label);
+    }
   });
 }
 
@@ -1312,7 +1326,7 @@ async function loadContent() {
       toolsWrap.innerHTML = '<div class="ou-loading">Couldn\u2019t load tools.</div>';
     } else {
       toolsWrap.innerHTML = toolsRes.data.map(renderToolCard).join('');
-      wireToolClickTracking();
+      wireToolClickTracking(toolsRes.data);
     }
 
     if (newsRes.error) {
