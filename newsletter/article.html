@@ -37,6 +37,9 @@ main { max-width: 720px; margin: 0 auto; padding: 56px 24px 80px; }
 .article-title { font-family: var(--font-head); font-weight: 600; font-size: clamp(24px,3.4vw,34px); color: var(--pep-navy); letter-spacing: -0.01em; margin-bottom: 10px; }
 .article-date { font-size: 13px; color: var(--text-muted); margin-bottom: 32px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
 .article-body p { margin-bottom: 18px; font-size: 15.5px; color: var(--text-body); line-height: 1.75; }
+.article-pages { display: flex; flex-direction: column; gap: 20px; margin-bottom: 8px; }
+.article-pages img { width: 100%; height: auto; display: block; border-radius: var(--radius-md); border: 1px solid var(--border); }
+.article-pages iframe { width: 100%; height: 80vh; border: 1px solid var(--border); border-radius: var(--radius-md); }
 .article-source { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border); }
 .article-source a { color: var(--pep-blue); font-size: 13px; font-weight: 600; text-decoration: none; }
 .article-source a:hover { text-decoration: underline; }
@@ -103,18 +106,33 @@ async function loadArticle(){
     if (error) console.error(error);
     return;
   }
+  const { data: images } = await sb.from('newsletter_images')
+    .select('*').eq('newsletter_item_id', id).order('sort_order');
+
   document.title = data.title + ' — PepsiCo APAC Legal';
-  const bodyHtml = (data.body || data.excerpt || '')
-    .split(/\n\s*\n/)
-    .filter(p => p.trim())
-    .map(p => '<p>' + escHtml(p.trim()) + '</p>')
-    .join('');
+
+  let contentHtml;
+  if (images && images.length) {
+    contentHtml = '<div class="article-pages">' + images.map(img =>
+      img.file_type === 'pdf'
+        ? '<iframe src="' + escHtml(img.url) + '"></iframe>'
+        : '<img src="' + escHtml(img.url) + '" alt="' + escHtml(data.title) + '">'
+    ).join('') + '</div>';
+  } else {
+    const bodyHtml = (data.body || data.excerpt || '')
+      .split(/\n\s*\n/)
+      .filter(p => p.trim())
+      .map(p => '<p>' + escHtml(p.trim()) + '</p>')
+      .join('');
+    contentHtml = '<div class="article-body">' + (bodyHtml || '<p>Full article content coming soon.</p>') + '</div>';
+  }
+
   main.innerHTML =
     '<a class="back-link" href="/newsletter/">\u2190 Back to Newsletter</a>' +
     '<div class="article-tag">' + escHtml(data.issue_label || '') + '</div>' +
     '<h1 class="article-title">' + escHtml(data.title) + '</h1>' +
     '<div class="article-date">' + escHtml(data.date_label || '') + '</div>' +
-    '<div class="article-body">' + (bodyHtml || '<p>Full article content coming soon.</p>') + '</div>' +
+    contentHtml +
     (data.url ? '<div class="article-source"><a href="' + escHtml(data.url) + '" target="_blank" rel="noopener">View original source \u2192</a></div>' : '');
 }
 loadArticle();

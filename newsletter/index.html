@@ -40,10 +40,14 @@ nav a:hover, nav a.active { background: rgba(255,255,255,0.1); color: #fff; }
 main { max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; }
 .article-list { display: flex; flex-direction: column; gap: 16px; }
 .article-card {
-  display: block; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg);
+  display: flex; gap: 18px; align-items: flex-start;
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg);
   padding: 24px 28px; text-decoration: none; color: inherit;
   transition: border-color var(--t), box-shadow var(--t), transform var(--t);
 }
+.article-card-thumb { width: 72px; height: 90px; flex-shrink: 0; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--off-white); }
+.article-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.article-card-body { flex: 1; min-width: 0; }
 .article-card:hover { border-color: var(--pep-blue); box-shadow: 0 4px 8px rgba(2,53,90,.06), 0 12px 24px rgba(2,53,90,.1); transform: translateY(-1px); }
 .article-tag { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pep-blue); margin-bottom: 8px; }
 .article-title { font-family: var(--font-head); font-weight: 600; font-size: 19px; color: var(--pep-navy); margin-bottom: 8px; letter-spacing: -0.01em; }
@@ -115,14 +119,29 @@ async function loadArticles(){
     .select('*').eq('published', true).order('sort_order');
   if (error) { el.innerHTML = '<div class="empty-hint">Couldn\u2019t load the newsletter right now. Try refreshing.</div>'; console.error(error); return; }
   if (!data || !data.length) { el.innerHTML = '<div class="empty-hint">No newsletter articles published yet.</div>'; return; }
-  el.innerHTML = data.map(n =>
-    '<a class="article-card" href="/newsletter/article.html?id=' + encodeURIComponent(n.id) + '">' +
-      '<div class="article-tag">' + escHtml(n.issue_label || '') + '</div>' +
-      '<div class="article-title">' + escHtml(n.title) + '</div>' +
-      (n.excerpt ? '<div class="article-excerpt">' + escHtml(n.excerpt) + '</div>' : '') +
-      '<div class="article-date">' + escHtml(n.date_label || '') + '</div>' +
-    '</a>'
-  ).join('');
+
+  const ids = data.map(n => n.id);
+  const { data: images } = await sb.from('newsletter_images')
+    .select('newsletter_item_id,url,file_type,sort_order').in('newsletter_item_id', ids).order('sort_order');
+  const firstImageByItem = {};
+  (images || []).forEach(img => {
+    if (img.file_type === 'image' && !firstImageByItem[img.newsletter_item_id]) {
+      firstImageByItem[img.newsletter_item_id] = img.url;
+    }
+  });
+
+  el.innerHTML = data.map(n => {
+    const thumb = firstImageByItem[n.id];
+    return '<a class="article-card" href="/newsletter/article.html?id=' + encodeURIComponent(n.id) + '">' +
+      (thumb ? '<div class="article-card-thumb"><img src="' + escHtml(thumb) + '" alt=""></div>' : '') +
+      '<div class="article-card-body">' +
+        '<div class="article-tag">' + escHtml(n.issue_label || '') + '</div>' +
+        '<div class="article-title">' + escHtml(n.title) + '</div>' +
+        (n.excerpt ? '<div class="article-excerpt">' + escHtml(n.excerpt) + '</div>' : '') +
+        '<div class="article-date">' + escHtml(n.date_label || '') + '</div>' +
+      '</div>' +
+    '</a>';
+  }).join('');
 }
 loadArticles();
 </script>
