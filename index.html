@@ -1192,7 +1192,7 @@ function renderNewsletter(items) {
   if (!track) return;
   if (!items.length) { track.closest('.carousel-outer').style.display = 'none'; return; }
   const slidesHtml = items.map(function(n){
-    const clickable = n.url ? ' style="cursor:pointer;" onclick="window.open(\'' + escHtml(n.url) + '\',\'_blank\')"' : '';
+    const href = '/newsletter/article.html?id=' + encodeURIComponent(n.id);
     return '<div class="ticker-slide"' + clickable + '>'
       + '<div class="slide-tag">' + escHtml(n.issue_label || '') + '</div>'
       + '<div class="slide-title">' + escHtml(n.title) + '</div>'
