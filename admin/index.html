@@ -238,6 +238,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 function escHtml(s){ if(s===null||s===undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function slugify(s){ return String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
 
 /* ── AUTH ── */
 const loginScreen = document.getElementById('login-screen');
@@ -375,14 +376,38 @@ function renderOuList(){
       '<span class="drag-handle">\u2807\u2807</span>' +
       '<span class="ou-dot" style="background:' + escHtml(ou.color||'#02355A') + '"></span>' + escHtml(ou.name) +
     '</button>'
-  ).join('');
+  ).join('') +
+  '<button class="btn btn-ghost btn-sm" id="addOuBtn" style="margin-top:8px;width:100%;">+ Add Operating Unit</button>';
   el.querySelectorAll('.ou-list-item').forEach(b => b.addEventListener('click', (e) => {
     if (e.target.classList.contains('drag-handle')) return;
     activeOuId = b.dataset.id;
     renderOuList();
     renderOuDetail(activeOuId);
   }));
+  const addBtn = document.getElementById('addOuBtn');
+  if (addBtn) addBtn.addEventListener('click', addOu);
   enableDragReorder(el, '.ou-list-item', 'operating_units', () => loadContentTab());
+}
+
+async function addOu(){
+  const name = prompt('Operating Unit name (e.g. "ANZ PO1"):');
+  if (!name || !name.trim()) return;
+  let slug = slugify(name);
+  if (!slug) { alert('That name doesn\u2019t produce a usable identifier — try including some letters or numbers.'); return; }
+  // Guard against slug collisions (e.g. two units both named similarly)
+  if (OUS.some(o => o.slug === slug)) {
+    let n = 2;
+    while (OUS.some(o => o.slug === slug + '-' + n)) n++;
+    slug = slug + '-' + n;
+  }
+  const { data, error } = await sb.from('operating_units').insert({
+    slug, name: name.trim(), sort_order: OUS.length, color: '#02355A'
+  }).select('id').single();
+  if (error) { alert('Could not create Operating Unit: ' + error.message); return; }
+  await loadContentTab();
+  activeOuId = data.id;
+  renderOuList();
+  renderOuDetail(activeOuId);
 }
 
 function renderOuDetail(ouId){
@@ -390,6 +415,18 @@ function renderOuDetail(ouId){
   const subs = SUBS.filter(s => s.ou_id === ouId).sort((a,b)=>a.sort_order-b.sort_order);
   const detail = document.getElementById('ouDetail');
   detail.innerHTML =
+    '<div class="editable-card" id="ouEditCard" style="margin-bottom:18px;">' +
+      '<div class="fields">' +
+        '<div><span class="field-label">Name</span><input class="f-ou-name" value="' + escHtml(ou.name) + '"></div>' +
+        '<div><span class="field-label">Badge (short code, e.g. "APAC")</span><input class="f-ou-badge" value="' + escHtml(ou.badge||'') + '" maxlength="6"></div>' +
+        '<div><span class="field-label">Color</span><input class="f-ou-color" type="color" value="' + escHtml(ou.color||'#02355A') + '" style="height:38px;padding:2px;"></div>' +
+        '<div><span class="field-label">Restricted (shows "Legal only" badge)</span>' +
+          '<label style="display:flex;align-items:center;gap:8px;height:38px;"><input class="f-ou-restricted" type="checkbox"' + (ou.restricted ? ' checked' : '') + '> Legal-only content</label></div>' +
+        '<div style="grid-column:1/-1"><span class="field-label">Meta / short description (shown under the tile name)</span><input class="f-ou-meta" value="' + escHtml(ou.meta||'') + '"></div>' +
+        '<div style="grid-column:1/-1;font-size:11px;color:var(--text-muted);">Slug: <code>' + escHtml(ou.slug) + '</code> — not editable here, since some site behavior is tied to it. Ask for a code change if this genuinely needs to change.</div>' +
+      '</div>' +
+      '<div class="row-actions"><button class="icon-btn" id="ouSaveBtn" title="Save">💾</button><button class="icon-btn" id="ouDeleteBtn" title="Delete this Operating Unit">🗑</button></div>' +
+    '</div>' +
     '<div class="sub-drag-zone" id="subDragZone">' +
     subs.map(sub => {
       const links = LINKS.filter(l => l.subsection_id === sub.id).sort((a,b)=>a.sort_order-b.sort_order);
@@ -406,6 +443,8 @@ function renderOuDetail(ouId){
     '</div>' +
     '<button class="btn btn-ghost btn-sm" id="addSubBtn">+ Add subsection</button>';
 
+  document.getElementById('ouSaveBtn').addEventListener('click', () => saveOu(ouId));
+  document.getElementById('ouDeleteBtn').addEventListener('click', () => deleteOu(ouId));
   detail.querySelectorAll('[data-add-link]').forEach(b => b.addEventListener('click', () => addLink(b.dataset.addLink)));
   detail.querySelectorAll('[data-delete-sub]').forEach(b => b.addEventListener('click', () => deleteSubsection(b.dataset.deleteSub, ouId)));
   detail.querySelectorAll('.link-row').forEach(wireLinkRow);
@@ -416,6 +455,39 @@ function renderOuDetail(ouId){
   detail.querySelectorAll('.link-rows').forEach(zone => {
     enableDragReorder(zone, '.link-row', 'links', () => renderOuDetail(ouId));
   });
+}
+
+async function saveOu(ouId){
+  const card = document.getElementById('ouEditCard');
+  const payload = {
+    name: card.querySelector('.f-ou-name').value.trim(),
+    badge: card.querySelector('.f-ou-badge').value.trim() || null,
+    color: card.querySelector('.f-ou-color').value,
+    restricted: card.querySelector('.f-ou-restricted').checked,
+    meta: card.querySelector('.f-ou-meta').value.trim() || null,
+  };
+  if (!payload.name) { alert('Name can\u2019t be empty.'); return; }
+  const { error } = await sb.from('operating_units').update(payload).eq('id', ouId);
+  if (error) { alert('Save failed: ' + error.message); return; }
+  await loadContentTab();
+  renderOuDetail(ouId);
+}
+
+async function deleteOu(ouId){
+  const ou = OUS.find(o => o.id === ouId);
+  const subCount = SUBS.filter(s => s.ou_id === ouId).length;
+  const linkCount = LINKS.filter(l => SUBS.find(s => s.id === l.subsection_id && s.ou_id === ouId)).length;
+  const warning = 'Delete the "' + (ou ? ou.name : 'this') + '" Operating Unit tile entirely?\n\n'
+    + 'This also deletes ' + subCount + ' subsection' + (subCount === 1 ? '' : 's')
+    + ' and ' + linkCount + ' link' + (linkCount === 1 ? '' : 's') + ' inside it.\n\n'
+    + 'This cannot be undone.';
+  if (!confirm(warning)) return;
+  const { error } = await sb.from('operating_units').delete().eq('id', ouId);
+  if (error) { alert('Delete failed: ' + error.message); return; }
+  activeOuId = null;
+  await loadContentTab();
+  renderOuList();
+  document.getElementById('ouDetail').innerHTML = '<div class="empty-hint">Select an operating unit to edit its content.</div>';
 }
 
 async function deleteSubsection(subId, ouId){
