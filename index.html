@@ -1193,12 +1193,12 @@ function renderNewsletter(items) {
   if (!items.length) { track.closest('.carousel-outer').style.display = 'none'; return; }
   const slidesHtml = items.map(function(n){
     const href = '/newsletter/article.html?id=' + encodeURIComponent(n.id);
-    return '<div class="ticker-slide"' + clickable + '>'
+    return '<div class="ticker-slide" style="cursor:pointer;" onclick="window.location=\'' + href + '\'">'
       + '<div class="slide-tag">' + escHtml(n.issue_label || '') + '</div>'
       + '<div class="slide-title">' + escHtml(n.title) + '</div>'
       + '<div class="slide-excerpt">' + escHtml(n.excerpt || '') + '</div>'
       + '<div class="slide-footer"><span class="slide-date">' + escHtml(n.date_label || '') + '</span>'
-      + (n.url ? '<span class="slide-read">Read more →</span>' : '') + '</div>'
+      + '<span class="slide-read">Read more →</span></div>'
       + '</div>';
   }).join('');
   track.innerHTML = slidesHtml + slidesHtml; // duplicate for the seamless infinite-scroll loop
@@ -1213,7 +1213,7 @@ async function loadContent() {
       sb.from('subsections').select('*').order('sort_order'),
       sb.from('links').select('*').order('sort_order'),
       sb.from('tools').select('*').order('sort_order'),
-      sb.from('newsletter_items').select('*').order('sort_order'),
+      sb.from('newsletter_items').select('*').eq('published', true).order('sort_order'),
       sb.from('destinations').select('*')
     ]);
     if (ousRes.error) throw ousRes.error;
