@@ -395,7 +395,10 @@ function renderOuDetail(ouId){
       const links = LINKS.filter(l => l.subsection_id === sub.id).sort((a,b)=>a.sort_order-b.sort_order);
       return '<div class="sub-block" data-id="' + sub.id + '">' +
         '<div class="sub-block-header"><span class="drag-handle">\u2807\u2807</span><h3>' + escHtml(sub.name) + '</h3>' +
-          '<button class="icon-btn btn-sm" data-add-link="' + sub.id + '" title="Add link">+ Add link</button></div>' +
+          '<div style="display:flex;gap:6px;align-items:center;">' +
+          '<button class="icon-btn btn-sm" data-add-link="' + sub.id + '" title="Add link">+ Add link</button>' +
+          '<button class="icon-btn btn-sm" data-delete-sub="' + sub.id + '" title="Delete this subsection and all its links">🗑</button>' +
+          '</div></div>' +
         '<div class="link-rows" data-sub-id="' + sub.id + '">' +
           links.map(l => linkRowHtml(l)).join('') +
         '</div></div>';
@@ -404,6 +407,7 @@ function renderOuDetail(ouId){
     '<button class="btn btn-ghost btn-sm" id="addSubBtn">+ Add subsection</button>';
 
   detail.querySelectorAll('[data-add-link]').forEach(b => b.addEventListener('click', () => addLink(b.dataset.addLink)));
+  detail.querySelectorAll('[data-delete-sub]').forEach(b => b.addEventListener('click', () => deleteSubsection(b.dataset.deleteSub, ouId)));
   detail.querySelectorAll('.link-row').forEach(wireLinkRow);
   const addSub = document.getElementById('addSubBtn');
   if (addSub) addSub.addEventListener('click', () => addSubsection(ouId));
@@ -412,6 +416,19 @@ function renderOuDetail(ouId){
   detail.querySelectorAll('.link-rows').forEach(zone => {
     enableDragReorder(zone, '.link-row', 'links', () => renderOuDetail(ouId));
   });
+}
+
+async function deleteSubsection(subId, ouId){
+  const sub = SUBS.find(s => s.id === subId);
+  const linkCount = LINKS.filter(l => l.subsection_id === subId).length;
+  const warning = linkCount > 0
+    ? 'Delete "' + (sub ? sub.name : 'this subsection') + '" and its ' + linkCount + ' link' + (linkCount === 1 ? '' : 's') + '? This cannot be undone.'
+    : 'Delete "' + (sub ? sub.name : 'this subsection') + '"? This cannot be undone.';
+  if (!confirm(warning)) return;
+  const { error } = await sb.from('subsections').delete().eq('id', subId);
+  if (error) { alert('Delete failed: ' + error.message); return; }
+  await loadContentTab();
+  renderOuDetail(ouId);
 }
 
 function linkRowHtml(l){
