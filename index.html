@@ -238,6 +238,7 @@ nav a:hover { background: rgba(255,255,255,0.18); color: #fff; border-color: rgb
 
 @media(max-width:900px) {
   .hero-search { max-width: none; }
+  .hero-globe-wrap { display: none; }
 }
 .hero-globe-wrap {
   flex-shrink: 0;
@@ -1318,7 +1319,7 @@ setTimeout(() => { rotateFab(); fabTimer = setInterval(rotateFab, 3500); }, 2000
 
 <!-- Globe styles -->
 <style>
-.hero-globe-wrap{flex-shrink:0;width:380px;height:290px;position:relative;}
+.hero-globe-wrap{flex-shrink:0;width:380px;height:290px;position:relative;overflow:hidden;}
 #globe-canvas{display:block;cursor:grab;}
 #globe-canvas:active{cursor:grabbing;}
 #globe-tooltip{
