@@ -270,7 +270,7 @@ table.analytics tr:last-child td{border-bottom:none;}
 const SUPABASE_URL = 'https://pweqaibadpahfprqhjdg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_SumS4TPFIvwTvjk1VdYiwQ_LjVEDQ7l';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, storageKey: 'apac-legal-admin-auth' }
+  auth: { persistSession: true, autoRefreshToken: true }
 });
 
 function escHtml(s){ if(s===null||s===undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -335,7 +335,7 @@ loginBtn.addEventListener('click', async () => {
   loginBtn.disabled = true;
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'azure',
-    options: { scopes: 'email' }
+    options: { scopes: 'email', redirectTo: window.location.origin + '/admin/' }
   });
   // On success this navigates away to Microsoft immediately, so there's
   // nothing further to do here. An error at this point means the redirect
