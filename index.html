@@ -947,7 +947,10 @@ header { padding: 8px 0; }
       </div>
       <button class="cp-close" id="chat-close"><svg class="icon"><use href="#i-close"></use></svg></button>
     </div>
-    <div class="cp-fallback-note">Having trouble loading? Make sure you're signed into your PepsiCo account, then try reopening this chat.</div>
+    <div class="cp-fallback-note" id="cpFallbackNote">
+      <span>Having trouble loading? <a href="https://pepsico.checkbox.ai/login" target="_blank" rel="noopener">Sign into Checkbox</a>, then try reopening this chat.</span>
+      <button id="cpFallbackDismiss" title="Dismiss">✕</button>
+    </div>
     <iframe
       class="chat-iframe"
       src="https://pepsico.checkbox.ai/app/ai-assistant/2a08598b-b810-414c-acf4-a3547917677b/start?isShared=true"
@@ -984,7 +987,10 @@ header { padding: 8px 0; }
 .cp-close{width:34px;height:34px;border:none;border-radius:10px;background:rgba(255,255,255,.12);color:#fff;cursor:pointer;font-size:14px;transition:background .15s;}
 .cp-close:hover{background:rgba(255,255,255,.22);}
 .chat-iframe{width:100%;flex:1;border:none;background:#fff;}
-.cp-fallback-note{font-size:11px;line-height:1.4;color:var(--pep-blue-mid);background:#eef3f8;padding:8px 18px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.cp-fallback-note{font-size:11px;line-height:1.4;color:var(--pep-blue-mid);background:#eef3f8;padding:8px 14px 8px 18px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:10px;justify-content:space-between;}
+.cp-fallback-note a{color:var(--pep-blue-mid);font-weight:600;text-decoration:underline;}
+.cp-fallback-note button{background:none;border:none;color:var(--pep-blue-mid);opacity:0.6;font-size:12px;cursor:pointer;padding:2px 4px;flex-shrink:0;}
+.cp-fallback-note button:hover{opacity:1;}
 
 /* ── mini search bar FAB ── */
 #chat-fab{
@@ -1100,6 +1106,30 @@ function updateAuthNav(email){
     signOutLink.style.display = 'none';
   }
 }
+
+// Hides the chat's "having trouble?" note once the person has manually
+// dismissed it, for the rest of this browser session. Deliberately does
+// NOT tie this to our own site's sign-in state — being signed into the
+// Front Door (via Microsoft) is a separate system from whatever session
+// Checkbox itself needs to load Legal Larry correctly, so one doesn't
+// confirm the other.
+function updateChatFallbackNote(){
+  const note = document.getElementById('cpFallbackNote');
+  if (!note) return;
+  let dismissed = false;
+  try { dismissed = sessionStorage.getItem('chatFallbackDismissed') === '1'; } catch(e) {}
+  note.style.display = dismissed ? 'none' : '';
+}
+document.addEventListener('DOMContentLoaded', function(){
+  const dismissBtn = document.getElementById('cpFallbackDismiss');
+  if (dismissBtn) {
+    dismissBtn.addEventListener('click', function(){
+      document.getElementById('cpFallbackNote').style.display = 'none';
+      try { sessionStorage.setItem('chatFallbackDismissed', '1'); } catch(e) {}
+    });
+  }
+  updateChatFallbackNote();
+});
 
 async function signOutOfSite(){
   await sb.auth.signOut();
