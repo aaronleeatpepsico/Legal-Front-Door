@@ -1168,7 +1168,10 @@ function escHtml(s) {
 function renderLinkItem(link) {
   const iconId = link.icon || 'i-link';
   const iconHtml = '<div class="link-icon"><svg class="icon"><use href="#' + escHtml(iconId) + '"></use></svg></div>';
-  const isLive = link.status === 'live' && link.url;
+  // An uploaded document takes priority over the URL when both are set —
+  // it's the actual destination this link opens.
+  const effectiveUrl = link.file_url || link.url;
+  const isLive = link.status === 'live' && effectiveUrl;
   const pendingBadge = !isLive
     ? ' <span class="pending">' + escHtml(link.pending_note || 'Pending') + '</span>'
     : '';
@@ -1181,7 +1184,7 @@ function renderLinkItem(link) {
     + reportBtn;
 
   if (isLive) {
-    return '<a class="link-item" href="' + escHtml(link.url) + '" target="_blank" rel="noopener" data-link-id="' + escHtml(link.id) + '">' + inner + '</a>';
+    return '<a class="link-item" href="' + escHtml(effectiveUrl) + '" target="_blank" rel="noopener" data-link-id="' + escHtml(link.id) + '">' + inner + '</a>';
   }
   return '<div class="link-item" style="cursor:default;" data-link-id="' + escHtml(link.id) + '">' + inner + '</div>';
 }
