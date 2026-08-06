@@ -155,6 +155,7 @@ table.analytics tr:last-child td{border-bottom:none;}
       <button class="tab-btn active" data-tab="content">Content</button>
       <button class="tab-btn" data-tab="destinations">Destinations</button>
       <button class="tab-btn" data-tab="tools">Tools</button>
+      <button class="tab-btn" data-tab="training">Training</button>
       <button class="tab-btn" data-tab="newsletter">Newsletter</button>
       <button class="tab-btn" data-tab="analytics">Analytics</button>
       <button class="tab-btn" data-tab="reports">Broken links</button>
@@ -221,6 +222,15 @@ table.analytics tr:last-child td{border-bottom:none;}
       <div class="section-title">Global Tools</div>
       <div id="toolsBody" class="empty-hint">Loading…</div>
       <button class="btn btn-ghost btn-sm" id="addToolBtn" style="margin-top:12px;">+ Add tool</button>
+    </div>
+
+    <div class="panel" id="panel-training">
+      <div class="section-title">Training</div>
+      <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px;max-width:560px;">
+        Shown on the public /training/ page, organized by system. Not restricted content.
+      </p>
+      <div id="trainingBody" class="empty-hint">Loading…</div>
+      <button class="btn btn-ghost btn-sm" id="addTrainingBtn" style="margin-top:12px;">+ Add training item</button>
     </div>
 
     <div class="panel" id="panel-newsletter">
@@ -358,6 +368,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (btn.dataset.tab === 'analytics') loadAnalytics();
     if (btn.dataset.tab === 'reports') loadReports();
     if (btn.dataset.tab === 'tools') loadToolsTab();
+    if (btn.dataset.tab === 'training') loadTrainingTab();
     if (btn.dataset.tab === 'newsletter') loadNewsletterTab();
     if (btn.dataset.tab === 'destinations') loadDestinationsTab();
     if (btn.dataset.tab === 'legalhub') loadLegalHubTab();
@@ -727,6 +738,64 @@ document.getElementById('addToolBtn').addEventListener('click', async () => {
     status: 'live', icon: 'i-link', sort_order: (data||[]).length
   });
   loadToolsTab();
+});
+
+/* ── TRAINING TAB ── */
+async function loadTrainingTab(){
+  const body = document.getElementById('trainingBody');
+  body.innerHTML = 'Loading…';
+  const { data, error } = await sb.from('training_items').select('*').order('sort_order');
+  if (error) { body.innerHTML = 'Could not load training items: ' + escHtml(error.message); return; }
+  if (!data.length) { body.innerHTML = '<div class="empty-hint">No training items yet.</div>'; return; }
+  body.innerHTML = data.map(trainingCardHtml).join('');
+  body.querySelectorAll('.editable-card').forEach(wireTrainingCard);
+  enableDragReorder(body, '.editable-card', 'training_items', () => loadTrainingTab());
+}
+
+function trainingCardHtml(t){
+  return '<div class="editable-card" data-id="' + t.id + '">' +
+    '<span class="drag-handle">\u2807\u2807</span>' +
+    '<div class="fields">' +
+      '<div><span class="field-label">System name</span><input class="f-system" value="' + escHtml(t.system_name) + '"></div>' +
+      '<div><span class="field-label">Audience note (e.g. "For ANZ")</span><input class="f-audience" value="' + escHtml(t.audience_note||'') + '"></div>' +
+      '<div><span class="field-label">Status</span><select class="f-status"><option value="live"'+(t.status==='live'?' selected':'')+'>Live</option><option value="pending"'+(t.status==='pending'?' selected':'')+'>Pending</option></select></div>' +
+      '<div><span class="field-label">Pending note</span><input class="f-note" value="' + escHtml(t.pending_note||'') + '"></div>' +
+      '<div style="grid-column:1/-1"><span class="field-label">URL</span><input class="f-url" value="' + escHtml(t.url||'') + '"></div>' +
+      '<div style="grid-column:1/-1"><span class="field-label">Description</span><textarea class="f-desc">' + escHtml(t.description||'') + '</textarea></div>' +
+    '</div>' +
+    '<div class="row-actions"><button class="icon-btn" data-save title="Save">\ud83d\udcbe</button><button class="icon-btn" data-delete title="Delete">\ud83d\uddd1</button></div>' +
+  '</div>';
+}
+
+function wireTrainingCard(card){
+  const id = card.dataset.id;
+  card.querySelector('[data-save]').addEventListener('click', async () => {
+    const payload = {
+      system_name: card.querySelector('.f-system').value.trim(),
+      audience_note: card.querySelector('.f-audience').value.trim() || null,
+      status: card.querySelector('.f-status').value,
+      pending_note: card.querySelector('.f-note').value.trim() || null,
+      url: card.querySelector('.f-url').value.trim() || null,
+      description: card.querySelector('.f-desc').value.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await sb.from('training_items').update(payload).eq('id', id);
+    flashRow(card, error ? 'Error' : 'Saved');
+  });
+  card.querySelector('[data-delete]').addEventListener('click', async () => {
+    if (!confirm('Delete this training item?')) return;
+    await sb.from('training_items').delete().eq('id', id);
+    loadTrainingTab();
+  });
+}
+
+document.getElementById('addTrainingBtn').addEventListener('click', async () => {
+  const { data } = await sb.from('training_items').select('id');
+  await sb.from('training_items').insert({
+    system_name: 'New system', status: 'pending', pending_note: 'Pending',
+    sort_order: (data||[]).length
+  });
+  loadTrainingTab();
 });
 
 /* ── NEWSLETTER TAB ── */
