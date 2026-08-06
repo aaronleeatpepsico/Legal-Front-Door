@@ -138,12 +138,8 @@ table.analytics tr:last-child td{border-bottom:none;}
   <div class="login-card">
     <h1>APAC Legal Front Door</h1>
     <p>Admin sign in</p>
-    <div class="field"><label>Email</label><input type="email" id="login-email" autocomplete="username"></div>
-    <div class="field" id="login-password-field"><label>Password</label><input type="password" id="login-password" autocomplete="current-password"></div>
-    <button class="btn btn-primary" id="login-btn">Sign in</button>
-    <button class="btn btn-ghost btn-sm" id="magic-link-toggle" style="width:100%;margin-top:8px;">Use a magic link instead</button>
+    <button class="btn btn-primary" id="login-btn" style="width:100%;">Sign in with Microsoft</button>
     <div id="login-error"></div>
-    <div id="magic-link-sent" style="display:none;font-size:12.5px;color:var(--text-muted);margin-top:10px;">Check your email for a sign-in link.</div>
   </div>
 </div>
 
@@ -304,6 +300,20 @@ function showLogin(){
 // Legal Hub viewer (magic-link access to restricted content on the public
 // site) without being an admin. This explicitly checks membership in the
 // `admins` table before ever showing the admin app.
+// OAuth is redirect-based: errors from a rejected sign-in (e.g. someone
+// outside PepsiCo's tenant, or a hook rejection) come back as query
+// params on the URL after Microsoft/Supabase redirect here, not as a
+// normal returned error from a function call. Check for that on load.
+(function showOAuthErrorIfAny(){
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, '') || window.location.search);
+  const err = params.get('error_description') || params.get('error');
+  if (err) {
+    loginError.textContent = decodeURIComponent(err.replace(/\+/g, ' '));
+    // Clean the error out of the URL so a refresh doesn't re-show it
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+})();
+
 sb.auth.onAuthStateChange(async (event, session) => {
   if (!session) { showLogin(); return; }
   const { data, error } = await sb.from('admins').select('email').ilike('email', session.user.email).maybeSingle();
@@ -318,40 +328,14 @@ sb.auth.onAuthStateChange(async (event, session) => {
 loginBtn.addEventListener('click', async () => {
   loginError.textContent = '';
   loginBtn.disabled = true;
-  const email = document.getElementById('login-email').value.trim();
-
-  if (usingMagicLink) {
-    // shouldCreateUser: false is deliberate — magic link sign-in must only
-    // work for emails that already have an admin account created via the
-    // Supabase Dashboard. Without this, anyone could self-register as an
-    // admin just by requesting a link, which is exactly what disabling
-    // "Enable email signups" in Supabase was meant to prevent.
-    const { error } = await sb.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: false }
-    });
-    loginBtn.disabled = false;
-    if (error) { loginError.textContent = error.message; return; }
-    document.getElementById('magic-link-sent').style.display = 'block';
-    return;
-  }
-
-  const password = document.getElementById('login-password').value;
-  const { error } = await sb.auth.signInWithPassword({ email, password });
-  loginBtn.disabled = false;
-  if (error) { loginError.textContent = error.message; return; }
-  // onAuthStateChange will fire showApp() once the session is confirmed
-});
-document.getElementById('login-password').addEventListener('keydown', e => { if(e.key==='Enter') loginBtn.click(); });
-
-let usingMagicLink = false;
-document.getElementById('magic-link-toggle').addEventListener('click', () => {
-  usingMagicLink = !usingMagicLink;
-  document.getElementById('login-password-field').style.display = usingMagicLink ? 'none' : '';
-  document.getElementById('magic-link-toggle').textContent = usingMagicLink ? 'Use a password instead' : 'Use a magic link instead';
-  loginBtn.textContent = usingMagicLink ? 'Send magic link' : 'Sign in';
-  loginError.textContent = '';
-  document.getElementById('magic-link-sent').style.display = 'none';
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'azure',
+    options: { scopes: 'email' }
+  });
+  // On success this navigates away to Microsoft immediately, so there's
+  // nothing further to do here. An error at this point means the redirect
+  // itself couldn't start (e.g. Azure isn't configured in Supabase yet).
+  if (error) { loginBtn.disabled = false; loginError.textContent = error.message; }
 });
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
