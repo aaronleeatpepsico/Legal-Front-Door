@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin — APAC Legal Front Door</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -122,6 +126,14 @@ table.analytics tr:last-child td{border-bottom:none;}
 
 /* ── NEWSLETTER FILE UPLOADS ── */
 .thumb-row{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 8px;min-height:2px;}
+.cb-app-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:12px;}
+.cb-file-list{margin:10px 0;display:flex;flex-direction:column;gap:6px;}
+.cb-file-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--off-white);border-radius:8px;font-size:12.5px;}
+.cb-file-type{flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;padding:2px 8px;border-radius:100px;}
+.cb-file-type.video{background:#e3ecfa;color:var(--pep-blue);}
+.cb-file-type.pdf{background:#fdf1d8;color:#92650a;}
+.cb-file-label{flex:1;color:var(--text-body);}
+.cb-upload-row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;}
 .thumb{position:relative;width:64px;height:80px;border-radius:6px;overflow:hidden;border:1px solid var(--border-mid);cursor:grab;background:var(--off-white);flex-shrink:0;}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;-webkit-user-drag:none;}
 .thumb-pdf{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:0.04em;}
@@ -156,6 +168,7 @@ table.analytics tr:last-child td{border-bottom:none;}
       <button class="tab-btn" data-tab="destinations">Destinations</button>
       <button class="tab-btn" data-tab="tools">Tools</button>
       <button class="tab-btn" data-tab="training">Training</button>
+      <button class="tab-btn" data-tab="cbtraining">Checkbox Training</button>
       <button class="tab-btn" data-tab="newsletter">Newsletter</button>
       <button class="tab-btn" data-tab="analytics">Analytics</button>
       <button class="tab-btn" data-tab="reports">Broken links</button>
@@ -231,6 +244,16 @@ table.analytics tr:last-child td{border-bottom:none;}
       </p>
       <div id="trainingBody" class="empty-hint">Loading…</div>
       <button class="btn btn-ghost btn-sm" id="addTrainingBtn" style="margin-top:12px;">+ Add training item</button>
+    </div>
+
+    <div class="panel" id="panel-cbtraining">
+      <div class="section-title">Checkbox App Training Materials</div>
+      <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px;max-width:620px;">
+        Training videos and cheat-sheet PDFs per Checkbox app, shown as their own section on the public
+        /training/ page. Upload files directly below — large videos may take a while.
+      </p>
+      <div id="cbTrainingBody" class="empty-hint">Loading…</div>
+      <button class="btn btn-ghost btn-sm" id="addCbAppBtn" style="margin-top:12px;">+ Add app</button>
     </div>
 
     <div class="panel" id="panel-newsletter">
@@ -369,6 +392,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (btn.dataset.tab === 'reports') loadReports();
     if (btn.dataset.tab === 'tools') loadToolsTab();
     if (btn.dataset.tab === 'training') loadTrainingTab();
+    if (btn.dataset.tab === 'cbtraining') loadCbTrainingTab();
     if (btn.dataset.tab === 'newsletter') loadNewsletterTab();
     if (btn.dataset.tab === 'destinations') loadDestinationsTab();
     if (btn.dataset.tab === 'legalhub') loadLegalHubTab();
@@ -796,6 +820,111 @@ document.getElementById('addTrainingBtn').addEventListener('click', async () => 
     sort_order: (data||[]).length
   });
   loadTrainingTab();
+});
+
+/* ── CHECKBOX APP TRAINING MATERIALS TAB ── */
+async function loadCbTrainingTab(){
+  const body = document.getElementById('cbTrainingBody');
+  body.innerHTML = 'Loading…';
+  const [appsRes, filesRes] = await Promise.all([
+    sb.from('training_apps').select('*').order('sort_order'),
+    sb.from('training_app_files').select('*').order('sort_order')
+  ]);
+  if (appsRes.error) { body.innerHTML = 'Could not load: ' + escHtml(appsRes.error.message); return; }
+  const apps = appsRes.data || [];
+  const files = filesRes.data || [];
+  if (!apps.length) { body.innerHTML = '<div class="empty-hint">No apps yet — add one below.</div>'; return; }
+
+  body.innerHTML = apps.map(app => cbAppCardHtml(app, files.filter(f => f.training_app_id === app.id))).join('');
+  apps.forEach(app => wireCbAppCard(app.id));
+}
+
+function cbAppCardHtml(app, appFiles){
+  return '<div class="cb-app-card" data-app-id="' + app.id + '">' +
+    '<div class="fields">' +
+      '<div style="grid-column:1/-1"><span class="field-label">App name</span><input class="f-appname" value="' + escHtml(app.app_name) + '"></div>' +
+      '<div style="grid-column:1/-1"><span class="field-label">Description</span><input class="f-appdesc" value="' + escHtml(app.description||'') + '"></div>' +
+    '</div>' +
+    '<div class="cb-file-list" id="cbFiles-' + app.id + '">' +
+      (appFiles.length ? appFiles.map(f => cbFileRowHtml(f)).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:4px 0;">No files uploaded yet.</div>') +
+    '</div>' +
+    '<div class="cb-upload-row">' +
+      '<input type="text" class="f-newlabel" placeholder="Label for the file (e.g. \u201cMarketing Training Video\u201d)" style="flex:1;min-width:220px;padding:8px 10px;border:1.5px solid var(--border-mid);border-radius:8px;font-family:inherit;font-size:12.5px;">' +
+      '<label class="btn btn-ghost btn-sm" style="cursor:pointer;">Choose file<input type="file" class="f-upload" accept="video/*,application/pdf" style="display:none;"></label>' +
+      '<span class="upload-status" style="font-size:11.5px;color:var(--text-muted);"></span>' +
+    '</div>' +
+    '<div class="row-actions" style="margin-top:10px;"><button class="icon-btn" data-save-app title="Save">\ud83d\udcbe</button><button class="icon-btn" data-delete-app title="Delete this app and all its files">\ud83d\uddd1</button></div>' +
+  '</div>';
+}
+
+function cbFileRowHtml(f){
+  return '<div class="cb-file-row" data-file-id="' + f.id + '">' +
+    '<span class="cb-file-type ' + f.file_type + '">' + f.file_type + '</span>' +
+    '<span class="cb-file-label">' + escHtml(f.label) + '</span>' +
+    '<a href="' + escHtml(f.file_url) + '" target="_blank" rel="noopener" class="icon-btn btn-sm" title="View">\ud83d\udc41</a>' +
+    '<button class="icon-btn btn-sm" data-delete-file title="Delete">\ud83d\uddd1</button>' +
+  '</div>';
+}
+
+function wireCbAppCard(appId){
+  const card = document.querySelector('.cb-app-card[data-app-id="' + appId + '"]');
+  if (!card) return;
+
+  card.querySelector('[data-save-app]').addEventListener('click', async () => {
+    const payload = {
+      app_name: card.querySelector('.f-appname').value.trim(),
+      description: card.querySelector('.f-appdesc').value.trim() || null,
+    };
+    const { error } = await sb.from('training_apps').update(payload).eq('id', appId);
+    flashRow(card, error ? 'Error' : 'Saved');
+  });
+
+  card.querySelector('[data-delete-app]').addEventListener('click', async () => {
+    if (!confirm('Delete this app and all its uploaded files? This cannot be undone.')) return;
+    await sb.from('training_apps').delete().eq('id', appId);
+    loadCbTrainingTab();
+  });
+
+  card.querySelectorAll('[data-delete-file]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const row = btn.closest('.cb-file-row');
+      if (!confirm('Delete this file?')) return;
+      await sb.from('training_app_files').delete().eq('id', row.dataset.fileId);
+      loadCbTrainingTab();
+    });
+  });
+
+  const fileInput = card.querySelector('.f-upload');
+  const labelInput = card.querySelector('.f-newlabel');
+  const statusEl = card.querySelector('.upload-status');
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const label = labelInput.value.trim();
+    if (!label) { statusEl.textContent = 'Add a label first.'; fileInput.value = ''; return; }
+    const fileType = file.type === 'application/pdf' ? 'pdf' : 'video';
+    statusEl.textContent = 'Uploading ' + file.name + '\u2026 (large videos can take a while)';
+    const path = appId + '/' + Date.now() + '-' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const { error: upErr } = await sb.storage.from('training-materials').upload(path, file);
+    if (upErr) { statusEl.textContent = 'Upload failed: ' + upErr.message; return; }
+    const { data: urlData } = sb.storage.from('training-materials').getPublicUrl(path);
+    const { data: existing } = await sb.from('training_app_files').select('id').eq('training_app_id', appId);
+    const { error } = await sb.from('training_app_files').insert({
+      training_app_id: appId, label, file_url: urlData.publicUrl, file_type: fileType,
+      sort_order: (existing||[]).length
+    });
+    if (error) { statusEl.textContent = 'Saved file but failed to record it: ' + error.message; return; }
+    statusEl.textContent = 'Uploaded.';
+    loadCbTrainingTab();
+  });
+}
+
+document.getElementById('addCbAppBtn').addEventListener('click', async () => {
+  const name = prompt('App name:');
+  if (!name || !name.trim()) return;
+  const { data } = await sb.from('training_apps').select('id');
+  await sb.from('training_apps').insert({ app_name: name.trim(), sort_order: (data||[]).length });
+  loadCbTrainingTab();
 });
 
 /* ── NEWSLETTER TAB ── */
