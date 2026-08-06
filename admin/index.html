@@ -574,13 +574,20 @@ function linkRowHtml(l){
   return '<div class="link-row" data-id="' + l.id + '" data-link-id="' + l.id + '">' +
     '<span class="drag-handle">\u2807\u2807</span>' +
     '<input class="f-label" value="' + escHtml(l.label) + '" placeholder="Label">' +
-    '<input class="f-url" value="' + escHtml(l.url||'') + '" placeholder="URL">' +
+    '<input class="f-url" value="' + escHtml(l.url||'') + '" placeholder="URL (or upload a PDF instead \u2192)">' +
     '<select class="f-status"><option value="live"' + (l.status==='live'?' selected':'') + '>Live</option><option value="pending"' + (l.status==='pending'?' selected':'') + '>Pending</option></select>' +
     '<input class="f-note" value="' + escHtml(l.pending_note||'') + '" placeholder="Pending note">' +
     '<div class="row-actions">' +
+      (l.file_url
+        ? '<a href="' + escHtml(l.file_url) + '" target="_blank" rel="noopener" class="icon-btn" title="View uploaded file">\ud83d\udcc4</a>' +
+          '<button class="icon-btn" data-remove-file title="Remove uploaded file, use URL instead">\ud83d\udcc4\u2715</button>'
+        : '<label class="icon-btn" title="Upload a PDF — used instead of the URL above when set"><input type="file" class="f-upload-doc" accept="application/pdf" style="display:none;">\ud83d\udcce</label>'
+      ) +
       '<button class="icon-btn" data-save title="Save">💾</button>' +
       '<button class="icon-btn" data-delete title="Delete">🗑</button>' +
-    '</div></div>';
+    '</div>' +
+    '<div class="upload-status" style="grid-column:1/-1;font-size:11px;color:var(--text-muted);"></div>' +
+    '</div>';
 }
 
 async function resolveDestinationId(url){
@@ -612,6 +619,30 @@ function wireLinkRow(row){
     await sb.from('links').delete().eq('id', id);
     loadContentTab();
   });
+  const uploadInput = row.querySelector('.f-upload-doc');
+  if (uploadInput) {
+    uploadInput.addEventListener('change', async () => {
+      const file = uploadInput.files[0];
+      if (!file) return;
+      const statusEl = row.querySelector('.upload-status');
+      statusEl.textContent = 'Uploading…';
+      const path = id + '/' + Date.now() + '-' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const { error: upErr } = await sb.storage.from('link-documents').upload(path, file);
+      if (upErr) { statusEl.textContent = 'Upload failed: ' + upErr.message; return; }
+      const { data: urlData } = sb.storage.from('link-documents').getPublicUrl(path);
+      const { error } = await sb.from('links').update({ file_url: urlData.publicUrl }).eq('id', id);
+      if (error) { statusEl.textContent = 'Saved file but failed to link it: ' + error.message; return; }
+      loadContentTab();
+    });
+  }
+  const removeFileBtn = row.querySelector('[data-remove-file]');
+  if (removeFileBtn) {
+    removeFileBtn.addEventListener('click', async () => {
+      if (!confirm('Remove the uploaded file from this link? The URL field will be used instead, if set.')) return;
+      await sb.from('links').update({ file_url: null }).eq('id', id);
+      loadContentTab();
+    });
+  }
 }
 
 function flashRow(row, msg){
