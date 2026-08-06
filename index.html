@@ -662,6 +662,13 @@ nav a:hover { background: rgba(255,255,255,0.18); color: #fff; border-color: rgb
 .embedded-portal-openlink:hover { text-decoration: underline; }
 .embedded-portal-frame { display: block; width: 100%; height: 640px; border: none; background: #fff; }
 @media(max-width:600px) { .embedded-portal-frame { height: 520px; } }
+
+.legal-hub-gate { padding: 20px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: #f5f8fb; }
+.legal-hub-gate p { margin: 0 0 12px; font-size: 13.5px; color: var(--pep-navy); }
+.legal-hub-gate-btn { padding: 10px 18px; border: none; border-radius: 100px; background: var(--pep-blue); color: #fff; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.legal-hub-gate-btn:hover { background: var(--pep-blue-mid); }
+.legal-hub-gate-btn:disabled { opacity: 0.6; cursor: default; }
+.legal-hub-gate-msg { margin-top: 10px; font-size: 12.5px; color: var(--pep-blue-mid); }
 .link-item {
   display: flex; align-items: flex-start; gap: 12px;
   padding: 11px 14px;
@@ -1075,6 +1082,7 @@ function toggleSub(id) {
 const SUPABASE_URL = 'https://pweqaibadpahfprqhjdg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_SumS4TPFIvwTvjk1VdYiwQ_LjVEDQ7l';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let IS_AUTHENTICATED = false;
 
 /* Anonymous, per-page-view token for click analytics only — generated fresh
    each visit, never persisted, never tied to identity or SSO. */
@@ -1178,14 +1186,55 @@ function renderOuCard(ou) {
 function renderOuPanel(ou, allSubsections, allLinks) {
   const subs = allSubsections.filter(function(s){ return s.ou_id === ou.id; })
                               .sort(function(a,b){ return a.sort_order - b.sort_order; });
+
+  // Restricted OU, nothing visible, not signed in → this is almost certainly
+  // RLS quietly hiding the content rather than the OU genuinely being empty.
+  // Show a sign-in gate instead of a blank panel.
+  const showGate = ou.restricted && subs.length === 0 && !IS_AUTHENTICATED;
+  const bodyHtml = showGate
+    ? '<div class="legal-hub-gate">'
+      + '<p>This content is restricted to the wider Legal team. Sign in with your PepsiCo Microsoft account to view it.</p>'
+      + '<button class="legal-hub-gate-btn" onclick="requestLegalHubAccess(this)">Sign in with Microsoft</button>'
+      + '<div class="legal-hub-gate-msg"></div>'
+    + '</div>'
+    : subs.map(function(s){ return renderSubsection(ou.slug, s, allLinks); }).join('');
+
   return '<div class="ou-panel" id="panel-' + escHtml(ou.slug) + '" style="--ou-color:' + escHtml(ou.color || '') + ';">'
     + '<div class="panel-header"><div class="panel-header-left"><div class="panel-color-dot"></div>'
     + '<span class="panel-name">' + escHtml(ou.name) + (ou.meta ? ' — ' + escHtml(ou.meta) : '') + '</span></div>'
     + '<button class="panel-close" onclick="toggleCard(\'' + ou.slug + '\')"><svg class="icon"><use href="#i-close"></use></svg> Close</button></div>'
     + '<div class="sub-list">'
-    + subs.map(function(s){ return renderSubsection(ou.slug, s, allLinks); }).join('')
+    + bodyHtml
     + '</div></div>';
 }
+
+async function requestLegalHubAccess(btn){
+  const msg = btn.closest('.legal-hub-gate').querySelector('.legal-hub-gate-msg');
+  btn.disabled = true;
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'azure',
+    options: { scopes: 'email' }
+  });
+  // On success this navigates away to Microsoft immediately. An error here
+  // means the redirect itself couldn't start.
+  if (error) { btn.disabled = false; msg.textContent = error.message; }
+}
+
+// OAuth is redirect-based: a rejected sign-in (e.g. not on the Legal Hub
+// allowlist, or outside PepsiCo's tenant) comes back as query params on
+// the URL after the redirect, not as a normal function return value.
+(function showOAuthErrorIfAny(){
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, '') || window.location.search);
+  const err = params.get('error_description') || params.get('error');
+  if (err) {
+    window.addEventListener('content-loaded', function once(){
+      window.removeEventListener('content-loaded', once);
+      const msg = document.querySelector('.legal-hub-gate-msg');
+      if (msg) msg.textContent = decodeURIComponent(err.replace(/\+/g, ' '));
+    });
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+})();
 
 // Single source of truth for "which external destinations open in the
 // in-site modal instead of a new tab." Add new domains/paths here only —
@@ -1298,14 +1347,16 @@ async function loadContent() {
   const grid = document.getElementById('ouGrid');
   const toolsWrap = document.getElementById('sidebarTools');
   try {
-    const [ousRes, subsRes, linksRes, toolsRes, newsRes, destRes] = await Promise.all([
+    const [ousRes, subsRes, linksRes, toolsRes, newsRes, destRes, sessionRes] = await Promise.all([
       sb.from('operating_units').select('*').order('sort_order'),
       sb.from('subsections').select('*').order('sort_order'),
       sb.from('links').select('*').order('sort_order'),
       sb.from('tools').select('*').order('sort_order'),
       sb.from('newsletter_items').select('*').eq('published', true).order('sort_order'),
-      sb.from('destinations').select('*')
+      sb.from('destinations').select('*'),
+      sb.auth.getSession()
     ]);
+    IS_AUTHENTICATED = !!(sessionRes && sessionRes.data && sessionRes.data.session);
     if (ousRes.error) throw ousRes.error;
     if (subsRes.error) throw subsRes.error;
     if (linksRes.error) throw linksRes.error;
