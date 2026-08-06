@@ -41,28 +41,83 @@ nav a:hover, nav a.active { background: rgba(255,255,255,0.1); color: #fff; }
 .page-hero p { color: rgba(255,255,255,0.65); font-weight: 300; max-width: 560px; }
 
 main { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
-.training-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; align-items: start; }
-@media (max-width: 560px) { .training-list { grid-template-columns: 1fr; } }
-.training-card {
-  display: flex; gap: 18px; align-items: flex-start; justify-content: space-between;
-  background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg);
-  padding: 24px 28px; text-decoration: none; color: inherit;
-  transition: border-color var(--t), box-shadow var(--t), transform var(--t);
-}
-.training-card.is-live:hover { border-color: var(--pep-blue); box-shadow: 0 4px 8px rgba(2,53,90,.06), 0 12px 24px rgba(2,53,90,.1); transform: translateY(-1px); }
-.training-card-body { flex: 1; min-width: 0; }
-.training-audience { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pep-blue-mid); background: #eef3f8; padding: 3px 10px; border-radius: 100px; margin-bottom: 10px; }
-.training-title { font-family: var(--font-head); font-weight: 600; font-size: 19px; color: var(--pep-navy); margin-bottom: 6px; letter-spacing: -0.01em; }
-.training-desc { font-size: 14px; color: var(--text-body); font-weight: 300; line-height: 1.6; }
-.training-arrow { flex-shrink: 0; font-size: 18px; color: var(--pep-blue); margin-top: 4px; }
-.pending-pill { flex-shrink: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #92650a; background: #fdf1d8; padding: 5px 12px; border-radius: 100px; margin-top: 2px; }
 
-.cb-merged-card { flex-direction: column; align-items: stretch; cursor: default; }
-.cb-apps-nested { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--border); display: flex; flex-direction: column; }
+.tr-tile-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+@media (max-width: 560px) { .tr-tile-grid { grid-template-columns: 1fr; } }
+.tr-tile {
+  background: var(--off-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 26px 24px 24px;
+  cursor: pointer;
+  transition: border-color var(--t), box-shadow var(--t), transform var(--t);
+  text-align: left;
+  width: 100%;
+  font-family: var(--font-body);
+  display: block;
+  position: relative;
+  border-top: 3px solid var(--tr-color, var(--pep-navy));
+}
+.tr-tile:hover { transform: translateY(-2px); border-color: var(--tr-color, var(--pep-navy)); }
+.tr-tile.active { border-color: var(--tr-color, var(--pep-navy)); box-shadow: none; }
+.tr-tile * { pointer-events: none; }
+.tr-tile-badge {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: var(--tr-color, var(--pep-navy));
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-head); font-size: 12px; font-weight: 500;
+  color: #fff; letter-spacing: 0.05em; margin-bottom: 16px;
+}
+.tr-tile-name { font-family: var(--font-head); font-weight: 600; font-size: 18px; color: var(--pep-navy); letter-spacing: -0.01em; margin-bottom: 4px; }
+.tr-tile-meta { font-size: 12px; font-weight: 300; color: var(--text-muted); }
+.tr-chevron {
+  position: absolute; top: 24px; right: 20px;
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); font-size: 12px;
+  transition: transform var(--t), background var(--t), border-color var(--t), color var(--t);
+}
+.tr-tile.active .tr-chevron { transform: rotate(180deg); background: var(--tr-color, var(--pep-navy)); border-color: var(--tr-color, var(--pep-navy)); color: #fff; }
+.tr-pending-dot { position: absolute; top: 24px; right: 58px; width: 8px; height: 8px; border-radius: 50%; background: #d9a441; }
+
+.tr-panel {
+  display: none;
+  margin-top: 16px;
+  background: #fff;
+  border: 1px solid var(--border-mid);
+  border-top: 3px solid var(--tr-color, var(--pep-navy));
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  animation: trSlideDown 240ms cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes trSlideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+.tr-panel.open { display: block; }
+.tr-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 28px; background: var(--off-white); border-bottom: 1px solid var(--border);
+}
+.tr-panel-header-left { display: flex; align-items: center; gap: 10px; }
+.tr-panel-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tr-color, var(--pep-navy)); }
+.tr-panel-name { font-family: var(--font-head); font-weight: 600; font-size: 15px; color: var(--pep-navy); }
+.tr-panel-close {
+  background: none; border: none; font-size: 12px; font-weight: 600; font-family: var(--font-body);
+  color: var(--text-muted); cursor: pointer; padding: 6px 14px; border-radius: 100px;
+  border: 1px solid var(--border); letter-spacing: 0.04em; text-transform: uppercase;
+  transition: background var(--t), color var(--t), border-color var(--t);
+}
+.tr-panel-close:hover { background: var(--pep-navy); color: #fff; border-color: var(--pep-navy); }
+.tr-panel-body { padding: 24px 28px; }
+.tr-panel-desc { font-size: 14px; color: var(--text-body); font-weight: 300; line-height: 1.6; margin-bottom: 16px; }
+.tr-open-link { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; background: var(--tr-color, var(--pep-navy)); color: #fff; border-radius: 100px; text-decoration: none; font-size: 13px; font-weight: 600; }
+.tr-open-link:hover { opacity: 0.9; }
+.pending-pill { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #92650a; background: #fdf1d8; padding: 5px 12px; border-radius: 100px; }
+
+.cb-apps-nested { display: flex; flex-direction: column; }
 .cb-app-card { border-bottom: 1px solid var(--border); }
 .cb-app-card:last-child { border-bottom: none; }
 .cb-app-trigger {
-  width: 100%; background: none; border: none; padding: 15px 4px;
+  width: 100%; background: none; border: none; padding: 15px 0;
   display: flex; align-items: center; justify-content: space-between;
   cursor: pointer; text-align: left; gap: 12px;
   transition: background var(--t); font-family: inherit;
@@ -72,7 +127,7 @@ main { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
 .cb-app-card.open .cb-app-title { color: var(--pep-navy); }
 .cb-app-chev { width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--text-muted); transition: transform var(--t); }
 .cb-app-card.open .cb-app-chev { transform: rotate(180deg); color: var(--pep-navy); }
-.cb-app-body { display: none; padding: 0 4px 18px; }
+.cb-app-body { display: none; padding: 0 0 18px; }
 .cb-app-card.open .cb-app-body { display: block; }
 .cb-app-desc { font-size: 12.5px; color: var(--text-muted); font-weight: 300; margin-bottom: 12px; }
 .cb-media-grid { display: flex; flex-direction: column; gap: 14px; }
@@ -92,7 +147,8 @@ footer { background: var(--pep-navy); border-top: 1px solid rgba(255,255,255,0.0
   .header-inner, .page-hero, footer { padding-left: 20px; padding-right: 20px; }
   nav a:not(.home-btn) { display: none; }
   nav { gap: 0; }
-  .training-card { flex-direction: column; gap: 10px; }
+  .tr-panel-header { padding: 16px 20px; }
+  .tr-panel-body { padding: 20px; }
   .footer-inner { flex-direction: column; gap: 8px; align-items: flex-start; }
 }
 </style>
@@ -123,9 +179,10 @@ footer { background: var(--pep-navy); border-top: 1px solid rgba(255,255,255,0.0
 </div>
 
 <main>
-  <div class="training-list" id="trainingList">
+  <div class="tr-tile-grid" id="trTileGrid">
     <div class="empty-hint">Loading&hellip;</div>
   </div>
+  <div id="trPanelArea"></div>
 </main>
 
 <footer>
@@ -144,14 +201,26 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 function escHtml(s){ if(s===null||s===undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+const SYSTEM_STYLE = {
+  'checkbox':          { color: '#3680CE', badge: 'CB' },
+  'plexus':            { color: '#02355A', badge: 'PLX' },
+  'nexo':              { color: '#B98418', badge: 'NX' },
+  'lawview / lawpep':  { color: '#5B3F8C', badge: 'LVP' }
+};
+function systemStyle(name){
+  const key = (name || '').trim().toLowerCase();
+  return SYSTEM_STYLE[key] || { color: '#02355A', badge: (name || '?').slice(0,3).toUpperCase() };
+}
+
 async function loadTraining(){
-  const el = document.getElementById('trainingList');
+  const gridEl = document.getElementById('trTileGrid');
+  const panelEl = document.getElementById('trPanelArea');
   const [itemsRes, appsRes, filesRes] = await Promise.all([
     sb.from('training_items').select('*').order('sort_order'),
     sb.from('training_apps').select('*').order('sort_order'),
     sb.from('training_app_files').select('*').order('sort_order')
   ]);
-  if (itemsRes.error) { el.innerHTML = '<div class="empty-hint">Couldn\u2019t load training resources right now. Try refreshing.</div>'; console.error(itemsRes.error); return; }
+  if (itemsRes.error) { gridEl.innerHTML = '<div class="empty-hint">Couldn\u2019t load training resources right now. Try refreshing.</div>'; console.error(itemsRes.error); return; }
   const items = itemsRes.data || [];
   items.sort(function(a, b){
     const aCb = (a.system_name || '').trim().toLowerCase() === 'checkbox';
@@ -161,37 +230,62 @@ async function loadTraining(){
   });
   const apps = appsRes.data || [];
   const files = filesRes.data || [];
-  if (!items.length) { el.innerHTML = '<div class="empty-hint">No training resources listed yet.</div>'; return; }
+  if (!items.length) { gridEl.innerHTML = '<div class="empty-hint">No training resources listed yet.</div>'; return; }
 
-  el.innerHTML = items.map(function(t){
-    const isCheckbox = (t.system_name || '').trim().toLowerCase() === 'checkbox';
+  gridEl.innerHTML = items.map(function(t, i){ return trTileHtml(t, i); }).join('');
+  panelEl.innerHTML = items.map(function(t, i){ return trPanelHtml(t, i, apps, files); }).join('');
+}
 
-    if (isCheckbox) {
-      // Checkbox doesn't link out — the actual app workflows are already
-      // reachable directly from the main site's Operating Unit tiles.
-      // Instead, this shows the real training materials in place.
-      return '<div class="training-card cb-merged-card">' +
-        '<div class="training-card-body">' +
-          (t.audience_note ? '<span class="training-audience">' + escHtml(t.audience_note) + '</span>' : '') +
-          '<div class="training-title">' + escHtml(t.system_name) + ' \u2014 training by app</div>' +
-          (t.description ? '<div class="training-desc">' + escHtml(t.description) + '</div>' : '') +
-        '</div>' +
-        cbAppsHtml(apps, files) +
-      '</div>';
-    }
+function trTileHtml(t, i){
+  const style = systemStyle(t.system_name);
+  const isCheckbox = (t.system_name || '').trim().toLowerCase() === 'checkbox';
+  const isPending = !isCheckbox && !(t.status === 'live' && t.url);
+  return '<button class="tr-tile" id="trcard-' + i + '" style="--tr-color:' + style.color + ';" onclick="toggleTrTile(' + i + ')" aria-expanded="false">' +
+    '<div class="tr-tile-badge">' + style.badge + '</div>' +
+    '<div class="tr-tile-name">' + escHtml(t.system_name) + '</div>' +
+    (t.audience_note ? '<div class="tr-tile-meta">' + escHtml(t.audience_note) + '</div>' : '') +
+    '<div class="tr-chevron">\u25be</div>' +
+    (isPending ? '<div class="tr-pending-dot" title="Pending"></div>' : '') +
+  '</button>';
+}
 
-    const isLive = t.status === 'live' && t.url;
-    const tag = isLive ? 'a' : 'div';
-    const hrefAttr = isLive ? (' href="' + escHtml(t.url) + '" target="_blank" rel="noopener"') : '';
-    return '<' + tag + ' class="training-card' + (isLive ? ' is-live' : '') + '"' + hrefAttr + '>' +
-      '<div class="training-card-body">' +
-        (t.audience_note ? '<span class="training-audience">' + escHtml(t.audience_note) + '</span>' : '') +
-        '<div class="training-title">' + escHtml(t.system_name) + '</div>' +
-        (t.description ? '<div class="training-desc">' + escHtml(t.description) + '</div>' : '') +
-      '</div>' +
-      (isLive ? '<div class="training-arrow">\u2197</div>' : '<span class="pending-pill">' + escHtml(t.pending_note || 'Pending') + '</span>') +
-    '</' + tag + '>';
-  }).join('');
+function trPanelHtml(t, i, apps, files){
+  const style = systemStyle(t.system_name);
+  const isCheckbox = (t.system_name || '').trim().toLowerCase() === 'checkbox';
+  const isLive = t.status === 'live' && t.url;
+
+  let bodyHtml;
+  if (isCheckbox) {
+    bodyHtml = (t.description ? '<div class="tr-panel-desc" style="margin-bottom:6px;">' + escHtml(t.description) + '</div>' : '') + cbAppsHtml(apps, files);
+  } else {
+    bodyHtml = (t.description ? '<div class="tr-panel-desc">' + escHtml(t.description) + '</div>' : '') +
+      (isLive
+        ? '<a class="tr-open-link" href="' + escHtml(t.url) + '" target="_blank" rel="noopener">Open ' + escHtml(t.system_name) + ' \u2197</a>'
+        : '<span class="pending-pill">' + escHtml(t.pending_note || 'Pending') + '</span>');
+  }
+
+  return '<div class="tr-panel" id="trpanel-' + i + '" style="--tr-color:' + style.color + ';">' +
+    '<div class="tr-panel-header"><div class="tr-panel-header-left"><div class="tr-panel-dot"></div>' +
+      '<div class="tr-panel-name">' + escHtml(t.system_name) + (isCheckbox ? ' \u2014 training by app' : '') + '</div></div>' +
+      '<button class="tr-panel-close" onclick="toggleTrTile(' + i + ')">Close</button></div>' +
+    '<div class="tr-panel-body">' + bodyHtml + '</div>' +
+  '</div>';
+}
+
+function toggleTrTile(i){
+  const card = document.getElementById('trcard-' + i);
+  const panel = document.getElementById('trpanel-' + i);
+  const isOpen = card.classList.contains('active');
+
+  document.querySelectorAll('.tr-tile.active').forEach(function(c){ c.classList.remove('active'); c.setAttribute('aria-expanded','false'); });
+  document.querySelectorAll('.tr-panel.open').forEach(function(p){ p.classList.remove('open'); });
+
+  if (!isOpen) {
+    card.classList.add('active');
+    card.setAttribute('aria-expanded','true');
+    panel.classList.add('open');
+    setTimeout(function(){ panel.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 50);
+  }
 }
 
 function cbAppsHtml(apps, files){
