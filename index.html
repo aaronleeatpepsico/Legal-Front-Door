@@ -849,6 +849,7 @@ header { padding: 8px 0; }
     </a>
     <nav id="mainNav">
       <a href="/newsletter/">Newsletter</a>
+      <a href="/training/">Training</a>
       <a href="#" onclick="openOrgModal();return false;">Our Team</a>
       <a href="#" onclick="toggleChat();return false;">Legal AI</a>
       <a href="/admin/" class="nav-admin" id="navAdminLink" style="display:none;" title="">Admin / Sign in</a>
@@ -1279,7 +1280,7 @@ async function requestLegalHubAccess(btn){
   btn.disabled = true;
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'azure',
-    options: { scopes: 'email' }
+    options: { scopes: 'email', redirectTo: window.location.href }
   });
   // On success this navigates away to Microsoft immediately. An error here
   // means the redirect itself couldn't start.
