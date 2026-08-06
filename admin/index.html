@@ -161,7 +161,10 @@ table.analytics tr:last-child td{border-bottom:none;}
       <button class="tab-btn" data-tab="legalhub">Legal Hub Access</button>
       <button class="tab-btn" data-tab="admins">Admins</button>
     </div>
-    <button class="btn btn-ghost btn-sm" id="logout-btn">Sign out</button>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span id="admin-email-badge" style="font-size:12px;color:rgba(255,255,255,.6);"></span>
+      <button class="btn btn-ghost btn-sm" id="logout-btn">Sign out</button>
+    </div>
   </header>
 
   <main>
@@ -280,9 +283,11 @@ const loginBtn = document.getElementById('login-btn');
 const loginError = document.getElementById('login-error');
 let appInitialized = false;
 
-function showApp(){
+function showApp(email){
   loginScreen.style.display = 'none';
   app.style.display = 'block';
+  const badge = document.getElementById('admin-email-badge');
+  if (badge) badge.textContent = 'Signed in as ' + email;
   if (!appInitialized) { appInitialized = true; initApp(); }
 }
 function showLogin(){
@@ -322,7 +327,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
     await sb.auth.signOut(); // re-triggers this handler with session=null → showLogin()
     return;
   }
-  showApp();
+  showApp(session.user.email);
 });
 
 loginBtn.addEventListener('click', async () => {
