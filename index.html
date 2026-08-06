@@ -1313,15 +1313,16 @@ async function requestLegalHubAccess(btn){
 function isModalUrl(url){
   if (!url) return false;
   if (url.indexOf('checkbox.ai') !== -1 && url.indexOf('ticketing/portal') === -1) return true; // Checkbox forms (not the dashboard portal — that's embedded inline)
-  if (url.indexOf('legalgateway.com.au') !== -1) return true; // Plexus — retrying per explicit request; was previously confirmed blocked
   return false;
-  // Note: mypepsico.com (ServiceNow) was tried and confirmed blocked — it
-  // sends a header that refuses framing outright ("refused to connect").
-  // This is a server-side restriction on their end, not fixable from here,
-  // and applies to every page on that domain regardless of URL. Do not
-  // re-add without an official embeddable/widget URL from that platform
-  // first (the same kind of purpose-built exception that makes the
-  // Checkbox chat widget work via its isShared=true URL).
+  // Note: mypepsico.com (ServiceNow) and legalgateway.com.au (Plexus) were
+  // both tried and confirmed blocked — each sends a header that refuses
+  // framing outright ("refused to connect"). This is a server-side
+  // restriction on their end, not fixable from here, and applies to every
+  // page on those domains regardless of URL. Do not re-add either without
+  // an official embeddable/widget URL from that platform first (the same
+  // kind of purpose-built exception that makes the Checkbox chat widget
+  // work via its isShared=true URL). Plexus was specifically re-tested
+  // twice (see conversation history) — both attempts confirmed blocked.
 }
 
 function wireClickTracking(links) {
