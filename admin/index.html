@@ -139,9 +139,11 @@ table.analytics tr:last-child td{border-bottom:none;}
     <h1>APAC Legal Front Door</h1>
     <p>Admin sign in</p>
     <div class="field"><label>Email</label><input type="email" id="login-email" autocomplete="username"></div>
-    <div class="field"><label>Password</label><input type="password" id="login-password" autocomplete="current-password"></div>
+    <div class="field" id="login-password-field"><label>Password</label><input type="password" id="login-password" autocomplete="current-password"></div>
     <button class="btn btn-primary" id="login-btn">Sign in</button>
+    <button class="btn btn-ghost btn-sm" id="magic-link-toggle" style="width:100%;margin-top:8px;">Use a magic link instead</button>
     <div id="login-error"></div>
+    <div id="magic-link-sent" style="display:none;font-size:12.5px;color:var(--text-muted);margin-top:10px;">Check your email for a sign-in link.</div>
   </div>
 </div>
 
@@ -160,6 +162,8 @@ table.analytics tr:last-child td{border-bottom:none;}
       <button class="tab-btn" data-tab="newsletter">Newsletter</button>
       <button class="tab-btn" data-tab="analytics">Analytics</button>
       <button class="tab-btn" data-tab="reports">Broken links</button>
+      <button class="tab-btn" data-tab="legalhub">Legal Hub Access</button>
+      <button class="tab-btn" data-tab="admins">Admins</button>
     </div>
     <button class="btn btn-ghost btn-sm" id="logout-btn">Sign out</button>
   </header>
@@ -179,6 +183,39 @@ table.analytics tr:last-child td{border-bottom:none;}
         This list is built automatically from the URLs used across your links; you don't create these directly.
       </p>
       <div id="destinationsBody" class="empty-hint">Loading…</div>
+    </div>
+
+    <div class="panel" id="panel-legalhub">
+      <div class="section-title">Legal Hub Access</div>
+      <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px;max-width:620px;">
+        Emails on this list can sign in via magic link on the main site to view restricted ("Legal only")
+        content — this is separate from admin accounts and does not grant edit access.
+        <strong>This list only takes effect once the Supabase Auth "Before User Created" hook is
+        configured</strong> — see the setup note in migration <code>15_legal_hub_access.sql</code> if
+        entries here don't seem to actually gate anything yet.
+      </p>
+      <div style="display:flex;gap:8px;margin-bottom:14px;max-width:420px;align-items:flex-start;">
+        <div class="field" style="flex:1;"><input id="legalHubEmailInput" type="email" placeholder="name@pepsico.com"></div>
+        <button class="btn btn-primary btn-sm" id="addLegalHubEmailBtn" style="width:auto;margin-top:0;">Add</button>
+      </div>
+      <div id="legalHubBody" class="empty-hint">Loading…</div>
+    </div>
+
+    <div class="panel" id="panel-admins">
+      <div class="section-title">Admins</div>
+      <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px;max-width:620px;">
+        Full edit access to the whole site. This is separate from Legal Hub Access — someone here can
+        change anything in the admin panel, not just view restricted content.
+        <strong>Adding someone here does not create their login.</strong> They still need an actual
+        account created first via Supabase Dashboard → Authentication → Users → Add user (magic-link
+        sign-in deliberately cannot create new admin accounts on its own — that's intentional, so
+        adding an email here is the second step, not the first).
+      </p>
+      <div style="display:flex;gap:8px;margin-bottom:14px;max-width:420px;align-items:flex-start;">
+        <div class="field" style="flex:1;"><input id="adminEmailInput" type="email" placeholder="name@pepsico.com"></div>
+        <button class="btn btn-primary btn-sm" id="addAdminBtn" style="width:auto;margin-top:0;">Add</button>
+      </div>
+      <div id="adminsBody" class="empty-hint">Loading…</div>
     </div>
 
     <div class="panel" id="panel-tools">
@@ -262,14 +299,43 @@ function showLogin(){
 // correctly handles the session being restored asynchronously from storage
 // on repeat visits (INITIAL_SESSION fires once the persisted session, if
 // any, has been read), plus keeps the UI in sync on sign-in/out/refresh.
-sb.auth.onAuthStateChange((event, session) => {
-  if (session) { showApp(); } else { showLogin(); }
+//
+// Being logged in is not enough on its own — someone could be a legitimate
+// Legal Hub viewer (magic-link access to restricted content on the public
+// site) without being an admin. This explicitly checks membership in the
+// `admins` table before ever showing the admin app.
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (!session) { showLogin(); return; }
+  const { data, error } = await sb.from('admins').select('email').ilike('email', session.user.email).maybeSingle();
+  if (error || !data) {
+    loginError.textContent = 'This account doesn\u2019t have admin access. Contact an existing admin if you believe this is wrong.';
+    await sb.auth.signOut(); // re-triggers this handler with session=null → showLogin()
+    return;
+  }
+  showApp();
 });
 
 loginBtn.addEventListener('click', async () => {
   loginError.textContent = '';
   loginBtn.disabled = true;
   const email = document.getElementById('login-email').value.trim();
+
+  if (usingMagicLink) {
+    // shouldCreateUser: false is deliberate — magic link sign-in must only
+    // work for emails that already have an admin account created via the
+    // Supabase Dashboard. Without this, anyone could self-register as an
+    // admin just by requesting a link, which is exactly what disabling
+    // "Enable email signups" in Supabase was meant to prevent.
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false }
+    });
+    loginBtn.disabled = false;
+    if (error) { loginError.textContent = error.message; return; }
+    document.getElementById('magic-link-sent').style.display = 'block';
+    return;
+  }
+
   const password = document.getElementById('login-password').value;
   const { error } = await sb.auth.signInWithPassword({ email, password });
   loginBtn.disabled = false;
@@ -277,6 +343,16 @@ loginBtn.addEventListener('click', async () => {
   // onAuthStateChange will fire showApp() once the session is confirmed
 });
 document.getElementById('login-password').addEventListener('keydown', e => { if(e.key==='Enter') loginBtn.click(); });
+
+let usingMagicLink = false;
+document.getElementById('magic-link-toggle').addEventListener('click', () => {
+  usingMagicLink = !usingMagicLink;
+  document.getElementById('login-password-field').style.display = usingMagicLink ? 'none' : '';
+  document.getElementById('magic-link-toggle').textContent = usingMagicLink ? 'Use a password instead' : 'Use a magic link instead';
+  loginBtn.textContent = usingMagicLink ? 'Send magic link' : 'Sign in';
+  loginError.textContent = '';
+  document.getElementById('magic-link-sent').style.display = 'none';
+});
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await sb.auth.signOut();
@@ -295,6 +371,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (btn.dataset.tab === 'tools') loadToolsTab();
     if (btn.dataset.tab === 'newsletter') loadNewsletterTab();
     if (btn.dataset.tab === 'destinations') loadDestinationsTab();
+    if (btn.dataset.tab === 'legalhub') loadLegalHubTab();
+    if (btn.dataset.tab === 'admins') loadAdminsTab();
   });
 });
 
@@ -747,6 +825,73 @@ document.getElementById('addNewsBtn').addEventListener('click', async () => {
 });
 
 /* ── DESTINATIONS ── */
+async function loadLegalHubTab(){
+  const body = document.getElementById('legalHubBody');
+  body.innerHTML = 'Loading…';
+  const { data, error } = await sb.from('legal_hub_viewers').select('*').order('added_at', { ascending: false });
+  if (error) {
+    body.innerHTML = 'Could not load the access list: ' + escHtml(error.message)
+      + '<br><br>If this says the table doesn\u2019t exist, migration <code>15_legal_hub_access.sql</code> hasn\u2019t been run yet.';
+    return;
+  }
+  if (!data.length) { body.innerHTML = '<div class="empty-hint">No approved emails yet — add the first one above.</div>'; return; }
+  body.innerHTML = data.map(v =>
+    '<div class="editable-card" data-id="' + v.id + '" style="align-items:center;">' +
+      '<div style="flex:1;font-size:13.5px;">' + escHtml(v.email) + '</div>' +
+      '<button class="icon-btn" data-remove-viewer="' + v.id + '" title="Remove access">🗑</button>' +
+    '</div>'
+  ).join('');
+  body.querySelectorAll('[data-remove-viewer]').forEach(btn => btn.addEventListener('click', async () => {
+    if (!confirm('Remove this email from Legal Hub access?')) return;
+    await sb.from('legal_hub_viewers').delete().eq('id', btn.dataset.removeViewer);
+    loadLegalHubTab();
+  }));
+}
+
+document.getElementById('addLegalHubEmailBtn').addEventListener('click', async () => {
+  const input = document.getElementById('legalHubEmailInput');
+  const email = input.value.trim().toLowerCase();
+  if (!email || !email.includes('@')) { alert('Enter a valid email address.'); return; }
+  const { data: userData } = await sb.auth.getUser();
+  const { error } = await sb.from('legal_hub_viewers').insert({ email, added_by: userData?.user?.email || null });
+  if (error) { alert('Could not add: ' + error.message); return; }
+  input.value = '';
+  loadLegalHubTab();
+});
+
+async function loadAdminsTab(){
+  const body = document.getElementById('adminsBody');
+  body.innerHTML = 'Loading…';
+  const { data, error } = await sb.from('admins').select('*').order('added_at', { ascending: false });
+  if (error) {
+    body.innerHTML = 'Could not load admins: ' + escHtml(error.message)
+      + '<br><br>If this says the table doesn\u2019t exist, migration <code>16_admin_role_separation.sql</code> hasn\u2019t been run yet.';
+    return;
+  }
+  if (!data.length) { body.innerHTML = '<div class="empty-hint">No admins listed \u2014 this shouldn\u2019t be empty, since you need to be one to see this page. Something\u2019s wrong if you\u2019re seeing this.</div>'; return; }
+  body.innerHTML = data.map(a =>
+    '<div class="editable-card" data-id="' + a.id + '" style="align-items:center;">' +
+      '<div style="flex:1;font-size:13.5px;">' + escHtml(a.email) + '</div>' +
+      '<button class="icon-btn" data-remove-admin="' + a.id + '" title="Remove admin access">🗑</button>' +
+    '</div>'
+  ).join('');
+  body.querySelectorAll('[data-remove-admin]').forEach(btn => btn.addEventListener('click', async () => {
+    if (!confirm('Remove admin access for this email? They\u2019ll keep any Legal Hub viewer access if separately listed there, but lose the ability to edit content.')) return;
+    await sb.from('admins').delete().eq('id', btn.dataset.removeAdmin);
+    loadAdminsTab();
+  }));
+}
+
+document.getElementById('addAdminBtn').addEventListener('click', async () => {
+  const input = document.getElementById('adminEmailInput');
+  const email = input.value.trim().toLowerCase();
+  if (!email || !email.includes('@')) { alert('Enter a valid email address.'); return; }
+  const { error } = await sb.from('admins').insert({ email });
+  if (error) { alert('Could not add: ' + error.message); return; }
+  input.value = '';
+  loadAdminsTab();
+});
+
 async function loadDestinationsTab(){
   const body = document.getElementById('destinationsBody');
   body.innerHTML = 'Loading…';
