@@ -851,7 +851,8 @@ header { padding: 8px 0; }
       <a href="/newsletter/">Newsletter</a>
       <a href="#" onclick="openOrgModal();return false;">Our Team</a>
       <a href="#" onclick="toggleChat();return false;">Legal AI</a>
-      <a href="/admin/" class="nav-admin" title="Admin login — for authorized Legal team members">Admin / Sign in</a>
+      <a href="/admin/" class="nav-admin" id="navAdminLink" title="Admin login — for authorized Legal team members">Admin / Sign in</a>
+      <a href="#" class="nav-admin" id="navSignOutLink" style="display:none;background:transparent !important;border-color:rgba(255,255,255,0.24) !important;" onclick="signOutOfSite();return false;">Sign out</a>
     </nav>
   </div>
 </header>
@@ -1083,6 +1084,25 @@ const SUPABASE_URL = 'https://pweqaibadpahfprqhjdg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_SumS4TPFIvwTvjk1VdYiwQ_LjVEDQ7l';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let IS_AUTHENTICATED = false;
+
+function updateAuthNav(email){
+  const adminLink = document.getElementById('navAdminLink');
+  const signOutLink = document.getElementById('navSignOutLink');
+  if (email) {
+    adminLink.textContent = 'Signed in \u2713';
+    adminLink.title = 'Signed in as ' + email + ' — click to go to the admin panel';
+    signOutLink.style.display = '';
+  } else {
+    adminLink.textContent = 'Admin / Sign in';
+    adminLink.title = 'Admin login — for authorized Legal team members';
+    signOutLink.style.display = 'none';
+  }
+}
+
+async function signOutOfSite(){
+  await sb.auth.signOut();
+  window.location.reload();
+}
 
 /* Anonymous, per-page-view token for click analytics only — generated fresh
    each visit, never persisted, never tied to identity or SSO. */
@@ -1357,6 +1377,7 @@ async function loadContent() {
       sb.auth.getSession()
     ]);
     IS_AUTHENTICATED = !!(sessionRes && sessionRes.data && sessionRes.data.session);
+    updateAuthNav(IS_AUTHENTICATED ? sessionRes.data.session.user.email : null);
     if (ousRes.error) throw ousRes.error;
     if (subsRes.error) throw subsRes.error;
     if (linksRes.error) throw linksRes.error;
