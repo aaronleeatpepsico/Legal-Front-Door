@@ -851,7 +851,7 @@ header { padding: 8px 0; }
       <a href="/newsletter/">Newsletter</a>
       <a href="#" onclick="openOrgModal();return false;">Our Team</a>
       <a href="#" onclick="toggleChat();return false;">Legal AI</a>
-      <a href="/admin/" class="nav-admin" id="navAdminLink" title="Admin login — for authorized Legal team members">Admin / Sign in</a>
+      <a href="/admin/" class="nav-admin" id="navAdminLink" style="display:none;" title="">Admin / Sign in</a>
       <a href="#" class="nav-admin" id="navSignOutLink" style="display:none;background:transparent !important;border-color:rgba(255,255,255,0.24) !important;" onclick="signOutOfSite();return false;">Sign out</a>
     </nav>
   </div>
@@ -1093,16 +1093,27 @@ const SUPABASE_ANON_KEY = 'sb_publishable_SumS4TPFIvwTvjk1VdYiwQ_LjVEDQ7l';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let IS_AUTHENTICATED = false;
 
-function updateAuthNav(email){
+function updateAuthNav(email, isAdmin){
   const adminLink = document.getElementById('navAdminLink');
   const signOutLink = document.getElementById('navSignOutLink');
-  if (email) {
+  if (email && isAdmin) {
+    adminLink.textContent = 'Admin';
+    adminLink.title = 'Signed in as ' + email + ' — go to the Admin panel';
+    adminLink.href = '/admin/';
+    adminLink.style.display = '';
+    signOutLink.style.display = '';
+  } else if (email) {
     adminLink.textContent = 'Signed in \u2713';
-    adminLink.title = 'Signed in as ' + email + ' — click to go to the admin panel';
+    adminLink.title = 'Signed in as ' + email;
+    adminLink.removeAttribute('href'); // not an admin — nothing to link to
+    adminLink.style.display = '';
     signOutLink.style.display = '';
   } else {
-    adminLink.textContent = 'Admin / Sign in';
-    adminLink.title = 'Admin login — for authorized Legal team members';
+    // Not signed in: no admin link at all for the general PepsiCo
+    // audience. Admins who need to sign in go directly to /admin/
+    // themselves (they already know that URL) rather than this being
+    // advertised in the header for everyone.
+    adminLink.style.display = 'none';
     signOutLink.style.display = 'none';
   }
 }
@@ -1409,7 +1420,12 @@ async function loadContent() {
       sb.auth.getSession()
     ]);
     IS_AUTHENTICATED = !!(sessionRes && sessionRes.data && sessionRes.data.session);
-    updateAuthNav(IS_AUTHENTICATED ? sessionRes.data.session.user.email : null);
+    let isAdmin = false;
+    if (IS_AUTHENTICATED) {
+      const { data: adminRow } = await sb.from('admins').select('email').ilike('email', sessionRes.data.session.user.email).maybeSingle();
+      isAdmin = !!adminRow;
+    }
+    updateAuthNav(IS_AUTHENTICATED ? sessionRes.data.session.user.email : null, isAdmin);
     if (ousRes.error) throw ousRes.error;
     if (subsRes.error) throw subsRes.error;
     if (linksRes.error) throw linksRes.error;
