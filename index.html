@@ -947,6 +947,7 @@ header { padding: 8px 0; }
       </div>
       <button class="cp-close" id="chat-close"><svg class="icon"><use href="#i-close"></use></svg></button>
     </div>
+    <div class="cp-fallback-note">Having trouble loading? Make sure you're signed into your PepsiCo account, then try reopening this chat.</div>
     <iframe
       class="chat-iframe"
       src="https://pepsico.checkbox.ai/app/ai-assistant/2a08598b-b810-414c-acf4-a3547917677b/start?isShared=true"
@@ -973,16 +974,17 @@ header { padding: 8px 0; }
 <style>
 #chat-widget{position:fixed;right:24px;bottom:24px;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;pointer-events:none;}
 #chat-fab{pointer-events:auto;}
-#chat-panel{width:430px;height:720px;background:#fff;border-radius:28px;overflow:hidden;border:1px solid rgba(0,0,0,.08);box-shadow:0 4px 8px rgba(2,53,90,.08), 0 16px 32px rgba(2,53,90,.14);margin-bottom:12px;opacity:0;pointer-events:none;transform:translateY(10px) scale(.96);transition:.25s ease;}
+#chat-panel{width:430px;height:720px;background:#fff;border-radius:28px;overflow:hidden;border:1px solid rgba(0,0,0,.08);box-shadow:0 4px 8px rgba(2,53,90,.08), 0 16px 32px rgba(2,53,90,.14);margin-bottom:12px;opacity:0;pointer-events:none;transform:translateY(10px) scale(.96);transition:.25s ease;display:flex;flex-direction:column;}
 #chat-widget.open #chat-panel{opacity:1;pointer-events:auto;transform:translateY(0) scale(1);}
-.cp-head{height:72px;background:#02355A;color:#fff;padding:0 18px;display:flex;align-items:center;justify-content:space-between;}
+.cp-head{height:72px;background:#02355A;color:#fff;padding:0 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
 .cp-left{display:flex;align-items:center;gap:12px;}
 .cp-icon{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:18px;}
 .cp-name{font-family:'Poppins','Barlow',sans-serif;font-size:20px;font-weight:600;letter-spacing:-0.02em;text-transform:uppercase;line-height:1;}
 .cp-status{font-size:11px;opacity:.82;margin-top:5px;}
 .cp-close{width:34px;height:34px;border:none;border-radius:10px;background:rgba(255,255,255,.12);color:#fff;cursor:pointer;font-size:14px;transition:background .15s;}
 .cp-close:hover{background:rgba(255,255,255,.22);}
-.chat-iframe{width:100%;height:648px;border:none;background:#fff;}
+.chat-iframe{width:100%;flex:1;border:none;background:#fff;}
+.cp-fallback-note{font-size:11px;line-height:1.4;color:var(--pep-blue-mid);background:#eef3f8;padding:8px 18px;border-bottom:1px solid var(--border);flex-shrink:0;}
 
 /* ── mini search bar FAB ── */
 #chat-fab{
