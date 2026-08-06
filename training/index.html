@@ -40,8 +40,9 @@ nav a:hover, nav a.active { background: rgba(255,255,255,0.1); color: #fff; }
 .page-hero h1 { font-family: var(--font-head); font-weight: 600; font-size: clamp(26px,3vw,38px); color: #fff; letter-spacing: -0.01em; margin-bottom: 12px; }
 .page-hero p { color: rgba(255,255,255,0.65); font-weight: 300; max-width: 560px; }
 
-main { max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; }
-.training-list { display: flex; flex-direction: column; gap: 16px; }
+main { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+.training-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 560px) { .training-list { grid-template-columns: 1fr; } }
 .training-card {
   display: flex; gap: 18px; align-items: flex-start; justify-content: space-between;
   background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg);
@@ -152,6 +153,12 @@ async function loadTraining(){
   ]);
   if (itemsRes.error) { el.innerHTML = '<div class="empty-hint">Couldn\u2019t load training resources right now. Try refreshing.</div>'; console.error(itemsRes.error); return; }
   const items = itemsRes.data || [];
+  items.sort(function(a, b){
+    const aCb = (a.system_name || '').trim().toLowerCase() === 'checkbox';
+    const bCb = (b.system_name || '').trim().toLowerCase() === 'checkbox';
+    if (aCb === bCb) return 0;
+    return aCb ? -1 : 1;
+  });
   const apps = appsRes.data || [];
   const files = filesRes.data || [];
   if (!items.length) { el.innerHTML = '<div class="empty-hint">No training resources listed yet.</div>'; return; }
