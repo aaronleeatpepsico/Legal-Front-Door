@@ -55,6 +55,17 @@ main { max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; }
 .training-desc { font-size: 14px; color: var(--text-body); font-weight: 300; line-height: 1.6; }
 .training-arrow { flex-shrink: 0; font-size: 18px; color: var(--pep-blue); margin-top: 4px; }
 .pending-pill { flex-shrink: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #92650a; background: #fdf1d8; padding: 5px 12px; border-radius: 100px; margin-top: 2px; }
+
+.cb-training-section { max-width: 900px; }
+.cb-app-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px 28px; margin-bottom: 18px; }
+.cb-app-title { font-family: var(--font-head); font-weight: 600; font-size: 18px; color: var(--pep-navy); margin-bottom: 4px; }
+.cb-app-desc { font-size: 13px; color: var(--text-muted); font-weight: 300; margin-bottom: 16px; }
+.cb-media-grid { display: flex; flex-direction: column; gap: 16px; }
+.cb-video-block video { width: 100%; max-height: 420px; border-radius: var(--radius-md); background: #000; display: block; }
+.cb-video-label { font-size: 12.5px; font-weight: 600; color: var(--pep-navy); margin-bottom: 6px; }
+.cb-pdf-link { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--off-white); border: 1px solid var(--border); border-radius: 100px; text-decoration: none; color: var(--pep-navy); font-size: 13px; font-weight: 600; }
+.cb-pdf-link:hover { border-color: var(--pep-blue); }
+.cb-empty-note { font-size: 12.5px; color: var(--text-muted); font-style: italic; }
 .empty-hint { text-align: center; padding: 60px 24px; color: var(--text-muted); font-size: 14px; }
 
 footer { background: var(--pep-navy); border-top: 1px solid rgba(255,255,255,0.06); padding: 28px 64px; }
@@ -100,6 +111,12 @@ footer { background: var(--pep-navy); border-top: 1px solid rgba(255,255,255,0.0
   <div class="training-list" id="trainingList">
     <div class="empty-hint">Loading&hellip;</div>
   </div>
+
+  <div class="cb-training-section">
+    <div class="eyebrow" style="color:var(--pep-blue);margin-top:56px;">Checkbox App Training</div>
+    <h2 style="font-family:var(--font-head);font-weight:600;font-size:24px;color:var(--pep-navy);margin:8px 0 24px;">Videos & cheat sheets, by app</h2>
+    <div id="cbTrainingList"><div class="empty-hint">Loading&hellip;</div></div>
+  </div>
 </main>
 
 <footer>
@@ -139,6 +156,50 @@ async function loadTraining(){
   }).join('');
 }
 loadTraining();
+
+async function loadCbTraining(){
+  const el = document.getElementById('cbTrainingList');
+  const [appsRes, filesRes] = await Promise.all([
+    sb.from('training_apps').select('*').order('sort_order'),
+    sb.from('training_app_files').select('*').order('sort_order')
+  ]);
+  if (appsRes.error) { el.innerHTML = '<div class="empty-hint">Couldn\u2019t load this section right now.</div>'; console.error(appsRes.error); return; }
+  const apps = appsRes.data || [];
+  const files = filesRes.data || [];
+  if (!apps.length) { el.innerHTML = '<div class="empty-hint">No app training materials listed yet.</div>'; return; }
+
+  el.innerHTML = apps.map(function(app){
+    const appFiles = files.filter(function(f){ return f.training_app_id === app.id; });
+    const videos = appFiles.filter(function(f){ return f.file_type === 'video'; });
+    const pdfs = appFiles.filter(function(f){ return f.file_type === 'pdf'; });
+
+    let mediaHtml = '';
+    if (!appFiles.length) {
+      mediaHtml = '<div class="cb-empty-note">Materials for this app haven\u2019t been uploaded yet.</div>';
+    } else {
+      mediaHtml += videos.map(function(v){
+        return '<div class="cb-video-block">' +
+          '<div class="cb-video-label">' + escHtml(v.label) + '</div>' +
+          '<video controls preload="metadata"><source src="' + escHtml(v.file_url) + '"></video>' +
+        '</div>';
+      }).join('');
+      if (pdfs.length) {
+        mediaHtml += '<div style="display:flex;flex-wrap:wrap;gap:10px;">' +
+          pdfs.map(function(p){
+            return '<a class="cb-pdf-link" href="' + escHtml(p.file_url) + '" target="_blank" rel="noopener">\ud83d\udcc4 ' + escHtml(p.label) + '</a>';
+          }).join('') +
+        '</div>';
+      }
+    }
+
+    return '<div class="cb-app-card">' +
+      '<div class="cb-app-title">' + escHtml(app.app_name) + '</div>' +
+      (app.description ? '<div class="cb-app-desc">' + escHtml(app.description) + '</div>' : '') +
+      '<div class="cb-media-grid">' + mediaHtml + '</div>' +
+    '</div>';
+  }).join('');
+}
+loadCbTraining();
 </script>
 </body>
 </html>
