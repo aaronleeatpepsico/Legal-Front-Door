@@ -1,0 +1,113 @@
+/* ---------------------------------------------------------------------------
+   Org Chart — shared styles. Reuses the Front Door design tokens
+   (--pep-navy, --pep-blue, --off-white, --page-bg, --border, --radius-*, --t)
+   defined in each page's :root. Include this AFTER the page's own <style>
+   block (or as a <link>) so the variables are already in scope.
+--------------------------------------------------------------------------- */
+
+.oc-wrap { width: 100%; }
+
+.oc-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-body); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 8px 16px; border-radius: 100px; cursor: pointer;
+  border: 1px solid var(--border-mid); background: #fff; color: var(--pep-navy);
+  transition: background var(--t), color var(--t), border-color var(--t);
+}
+.oc-btn:hover { border-color: var(--pep-blue); }
+.oc-btn-solid { background: var(--pep-navy); color: #fff; border-color: var(--pep-navy); }
+.oc-btn-solid:hover { background: var(--pep-blue-mid); border-color: var(--pep-blue-mid); }
+.oc-btn-danger { color: #b3462c; border-color: #f1d6cc; }
+.oc-btn-danger:hover { background: #fdf1ec; }
+.oc-btn-sm { padding: 5px 12px; font-size: 10px; }
+
+.oc-canvas-scroll {
+  overflow-x: auto; background: #fff; border: 1px solid var(--border);
+  border-radius: var(--radius-lg); box-shadow: 0 8px 30px rgba(2,53,90,0.06);
+}
+.oc-canvas { position: relative; margin: 0 auto; }
+.oc-canvas svg { position: absolute; inset: 0; pointer-events: none; }
+
+.oc-card {
+  position: absolute; width: 178px;
+  background: var(--off-white); border: 1.5px solid var(--border);
+  border-radius: var(--radius-md); padding: 10px 12px;
+  transform: translate(-50%, -50%);
+  transition: border-color var(--t), box-shadow var(--t), opacity var(--t);
+  box-shadow: 0 1px 3px rgba(2,53,90,0.06);
+  font-family: var(--font-body);
+}
+.oc-card:hover { border-color: var(--pep-blue); }
+.oc-card.oc-selected { border-color: var(--pep-navy); box-shadow: 0 8px 20px rgba(2,53,90,0.14); z-index: 10; }
+.oc-card.oc-drop-target { background: #eaf1fb; border-color: var(--pep-blue); }
+.oc-card.oc-dragging { opacity: 0.35; }
+.oc-card.oc-admin { cursor: grab; }
+.oc-grip { position: absolute; top: 6px; right: 6px; color: var(--border-mid); }
+
+.oc-card-top { display: flex; align-items: center; gap: 9px; }
+.oc-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  object-fit: cover; border: 1px solid var(--border);
+  background: #eaf1fb; color: var(--pep-blue);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-head); font-weight: 600; font-size: 11px;
+}
+.oc-name {
+  font-family: var(--font-head); font-weight: 600; font-size: 12.5px; color: var(--pep-navy);
+  line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.oc-role {
+  font-size: 10.5px; font-weight: 300; color: var(--text-muted); margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.oc-card-expand { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.oc-desc { font-size: 10.5px; font-weight: 400; color: var(--text-body); line-height: 1.4; margin-bottom: 8px; }
+.oc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.oc-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 23px; height: 23px; border-radius: 6px;
+  border: 1px solid var(--border-mid); background: #fff; color: var(--pep-navy);
+  text-decoration: none; cursor: pointer;
+}
+.oc-icon-btn:hover { border-color: var(--pep-blue); color: var(--pep-blue); }
+.oc-icon-btn.oc-danger { color: #b3462c; border-color: #f1d6cc; }
+.oc-icon-btn.oc-danger:hover { background: #fdf1ec; }
+
+.oc-empty-hint { text-align: center; padding: 60px 24px; color: var(--text-muted); font-size: 14px; }
+.oc-legend { margin-top: 12px; font-size: 11px; font-weight: 300; color: var(--text-muted); text-align: center; }
+
+/* modal overlay — mirrors the video-modal / add-form pattern already on the site */
+.oc-modal-overlay {
+  position: fixed; inset: 0; z-index: 900;
+  background: rgba(2,53,90,0.4); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .22s ease; padding: 16px;
+}
+.oc-modal-overlay.oc-open { opacity: 1; pointer-events: all; }
+.oc-modal-panel {
+  background: #fff; border-radius: var(--radius-lg); padding: 24px; width: 340px;
+  max-height: 88vh; overflow-y: auto;
+  box-shadow: 0 32px 80px rgba(2,53,90,0.25);
+  transform: scale(0.97) translateY(10px); transition: transform .22s ease;
+}
+.oc-modal-overlay.oc-open .oc-modal-panel { transform: scale(1) translateY(0); }
+.oc-modal-title { font-family: var(--font-head); font-weight: 600; font-size: 14px; color: var(--pep-navy); margin-bottom: 2px; }
+.oc-modal-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 16px; }
+.oc-field-label { display: block; font-size: 10.5px; font-weight: 600; color: var(--text-muted); margin-top: 12px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.03em; }
+.oc-input, .oc-textarea {
+  width: 100%; box-sizing: border-box; padding: 9px 11px; font-size: 13px;
+  border-radius: 8px; border: 1px solid var(--border-mid); outline: none;
+  font-family: var(--font-body); color: var(--text-body); background: #fff;
+}
+.oc-input:focus, .oc-textarea:focus { border-color: var(--pep-blue); }
+.oc-textarea { resize: vertical; min-height: 60px; line-height: 1.4; }
+.oc-modal-actions { display: flex; gap: 8px; margin-top: 18px; justify-content: flex-end; }
+.oc-error { font-size: 10.5px; color: #b3462c; margin-top: 6px; }
+.oc-photo-row { display: flex; align-items: center; gap: 12px; }
+.oc-file-btn {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600;
+  padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border-mid);
+  color: var(--pep-navy); background: #fff; cursor: pointer; width: fit-content;
+}
+
