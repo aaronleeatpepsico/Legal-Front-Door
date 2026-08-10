@@ -116,7 +116,7 @@
     if (!roots.length) return { byId: byId, positions: {}, edges: [], width: 0, height: 0 };
 
     let maxDepth = 0;
-    (function measure(node, depth) {
+    function measure(node, depth) {
       maxDepth = Math.max(maxDepth, depth);
       if (!node.children.length) { node._w = NODE_W; return node._w; }
       let w = 0;
@@ -126,7 +126,7 @@
     }
     roots.forEach(function (root) { measure(root, 0); });
 
-    (function place(node, leftEdge, depth) {
+    function place(node, leftEdge, depth) {
       const y = TOP_PAD + depth * (NODE_H + V_GAP);
       if (!node.children.length) { node.x = leftEdge + node._w / 2; node.y = y; return; }
       const childrenWidth = node.children.reduce(function (s, c, i) { return s + c._w + (i > 0 ? H_GAP : 0); }, 0);
@@ -142,7 +142,7 @@
     });
 
     const positions = {}, edges = [];
-    (function collect(node) {
+    function collect(node) {
       positions[node.id] = { x: node.x, y: node.y };
       if (node.children.length) {
         edges.push({
