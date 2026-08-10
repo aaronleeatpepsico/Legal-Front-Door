@@ -30,6 +30,17 @@
 }
 .oc-canvas { position: relative; margin: 0 auto; }
 .oc-canvas svg { position: absolute; inset: 0; pointer-events: none; }
+.oc-line-visible { pointer-events: none; }
+.oc-line-hit { pointer-events: stroke; cursor: ew-resize; touch-action: none; }
+.oc-line-handle {
+  pointer-events: all; cursor: ew-resize; touch-action: none;
+  fill: #fff; stroke: var(--pep-blue); stroke-width: 2;
+  opacity: 0; transition: opacity var(--t);
+}
+.oc-line-hit:hover + .oc-line-handle,
+.oc-line-handle:hover,
+.oc-canvas.oc-routing .oc-line-handle { opacity: 1; }
+.oc-canvas.oc-routing { cursor: ew-resize; user-select: none; }
 
 .oc-card {
   position: absolute; width: 148px;
