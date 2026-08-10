@@ -21,6 +21,30 @@ create index if not exists org_chart_people_manager_id_idx
 
 alter table public.org_chart_people enable row level security;
 
+-- Resolve admin membership through a SECURITY DEFINER helper. This avoids
+-- admins-table RLS recursion and supports common Azure identity claim names.
+create or replace function public.is_org_chart_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $
+  select exists (
+    select 1
+    from public.admins a
+    where lower(a.email) = lower(coalesce(
+      auth.jwt() ->> 'email',
+      auth.jwt() ->> 'preferred_username',
+      auth.jwt() ->> 'upn',
+      ''
+    ))
+  );
+$;
+
+revoke all on function public.is_org_chart_admin() from public;
+grant execute on function public.is_org_chart_admin() to authenticated;
+
 drop policy if exists "org chart public read" on public.org_chart_people;
 create policy "org chart public read"
   on public.org_chart_people
@@ -34,11 +58,7 @@ create policy "org chart admins insert"
   for insert
   to authenticated
   with check (
-    exists (
-      select 1
-      from public.admins a
-      where lower(a.email) = lower(auth.jwt() ->> 'email')
-    )
+    public.is_org_chart_admin()
   );
 
 drop policy if exists "org chart admins update" on public.org_chart_people;
@@ -47,18 +67,10 @@ create policy "org chart admins update"
   for update
   to authenticated
   using (
-    exists (
-      select 1
-      from public.admins a
-      where lower(a.email) = lower(auth.jwt() ->> 'email')
-    )
+    public.is_org_chart_admin()
   )
   with check (
-    exists (
-      select 1
-      from public.admins a
-      where lower(a.email) = lower(auth.jwt() ->> 'email')
-    )
+    public.is_org_chart_admin()
   );
 
 drop policy if exists "org chart admins delete" on public.org_chart_people;
@@ -67,11 +79,7 @@ create policy "org chart admins delete"
   for delete
   to authenticated
   using (
-    exists (
-      select 1
-      from public.admins a
-      where lower(a.email) = lower(auth.jwt() ->> 'email')
-    )
+    public.is_org_chart_admin()
   );
 
 insert into storage.buckets (id, name, public)
@@ -92,11 +100,7 @@ create policy "org photos admins insert"
   to authenticated
   with check (
     bucket_id = 'org-photos'
-    and exists (
-      select 1
-      from public.admins a
-      where lower(a.email) = lower(auth.jwt() ->> 'email')
-    )
+    and public.is_org_chart_admin()
   );
 
 drop policy if exists "org photos admins update" on storage.objects;
@@ -106,19 +110,11 @@ create policy "org photos admins update"
   to authenticated
   using (
     bucket_id = 'org-photos'
-    and exists (
-      select 1
-      from public.admins a
-      where lower(a.email) = lower(auth.jwt() ->> 'email')
-    )
+    and public.is_org_chart_admin()
   )
   with check (
     bucket_id = 'org-photos'
-    and exists (
-      select 1
-      from public.admins a
-      where lower(a.email) = lower(auth.jwt() ->> 'email')
-    )
+    and public.is_org_chart_admin()
   );
 
 drop policy if exists "org photos admins delete" on storage.objects;
@@ -128,11 +124,7 @@ create policy "org photos admins delete"
   to authenticated
   using (
     bucket_id = 'org-photos'
-    and exists (
-      select 1
-      from public.admins a
-      where lower(a.email) = lower(auth.jwt() ->> 'email')
-    )
+    and public.is_org_chart_admin()
   );
 
 
