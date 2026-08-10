@@ -21,6 +21,11 @@ create index if not exists org_chart_people_manager_id_idx
 
 alter table public.org_chart_people enable row level security;
 
+-- Raw SQL table creation does not automatically grant PostgREST roles table
+-- privileges. RLS policies filter these grants; both layers are required.
+grant select on table public.org_chart_people to anon, authenticated;
+grant insert, update, delete on table public.org_chart_people to authenticated;
+
 -- Resolve admin membership through a SECURITY DEFINER helper. Use the
 -- immutable Supabase user id to read the canonical Auth email instead of
 -- relying on provider-specific JWT claim names.
