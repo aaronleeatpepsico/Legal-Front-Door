@@ -352,15 +352,24 @@ function showLogin(){
   }
 })();
 
-sb.auth.onAuthStateChange(async (event, session) => {
+async function handleSession(session) {
   if (!session) { showLogin(); return; }
   const { data, error } = await sb.from('admins').select('email').ilike('email', session.user.email).maybeSingle();
   if (error || !data) {
-    loginError.textContent = 'This account doesn\u2019t have admin access. Contact an existing admin if you believe this is wrong.';
-    await sb.auth.signOut(); // re-triggers this handler with session=null → showLogin()
+    loginError.textContent = error
+      ? 'Could not verify admin access: ' + error.message
+      : 'This account doesn\u2019t have admin access. Contact an existing admin if you believe this is wrong.';
+    await sb.auth.signOut();
     return;
   }
   showApp(session.user.email);
+}
+
+// Supabase warns against awaiting further client calls inside this callback:
+// doing so can block session restoration or sign-out. Defer authorization to
+// the next task so the auth event can finish first.
+sb.auth.onAuthStateChange((event, session) => {
+  setTimeout(() => { handleSession(session); }, 0);
 });
 
 loginBtn.addEventListener('click', async () => {

@@ -108,24 +108,25 @@
   function layoutTree(rows) {
     const byId = {};
     rows.forEach(function (r) { byId[r.id] = Object.assign({}, r, { children: [] }); });
-    let root = null;
+    const roots = [];
     rows.forEach(function (r) {
       if (r.manager_id && byId[r.manager_id]) byId[r.manager_id].children.push(byId[r.id]);
-      else if (!r.manager_id) root = byId[r.id];
+      else roots.push(byId[r.id]); // top-level people and records whose manager was removed
     });
-    if (!root) return { byId: byId, positions: {}, edges: [], width: 0, height: 0 };
+    if (!roots.length) return { byId: byId, positions: {}, edges: [], width: 0, height: 0 };
 
     let maxDepth = 0;
-    (function measure(node, depth) {
+    function measure(node, depth) {
       maxDepth = Math.max(maxDepth, depth);
       if (!node.children.length) { node._w = NODE_W; return node._w; }
       let w = 0;
       node.children.forEach(function (c, i) { if (i > 0) w += H_GAP; w += measure(c, depth + 1); });
       node._w = Math.max(NODE_W, w);
       return node._w;
-    })(root, 0);
+    }
+    roots.forEach(function (root) { measure(root, 0); });
 
-    (function place(node, leftEdge, depth) {
+    function place(node, leftEdge, depth) {
       const y = TOP_PAD + depth * (NODE_H + V_GAP);
       if (!node.children.length) { node.x = leftEdge + node._w / 2; node.y = y; return; }
       const childrenWidth = node.children.reduce(function (s, c, i) { return s + c._w + (i > 0 ? H_GAP : 0); }, 0);
@@ -133,10 +134,15 @@
       node.children.forEach(function (c) { place(c, cursor, depth + 1); cursor += c._w + H_GAP; });
       node.x = (node.children[0].x + node.children[node.children.length - 1].x) / 2;
       node.y = y;
-    })(root, SIDE_PAD, 0);
+    }
+    let rootCursor = SIDE_PAD;
+    roots.forEach(function (root) {
+      place(root, rootCursor, 0);
+      rootCursor += root._w + H_GAP;
+    });
 
     const positions = {}, edges = [];
-    (function collect(node) {
+    function collect(node) {
       positions[node.id] = { x: node.x, y: node.y };
       if (node.children.length) {
         edges.push({
@@ -146,11 +152,15 @@
         });
       }
       node.children.forEach(collect);
-    })(root);
+    }
+    roots.forEach(collect);
 
+    const forestWidth = roots.reduce(function (sum, root, i) {
+      return sum + root._w + (i > 0 ? H_GAP : 0);
+    }, 0);
     return {
       byId: byId, positions: positions, edges: edges,
-      width: root._w + SIDE_PAD * 2,
+      width: forestWidth + SIDE_PAD * 2,
       height: TOP_PAD + maxDepth * (NODE_H + V_GAP) + NODE_H + BOTTOM_PAD
     };
   }
@@ -222,8 +232,13 @@
     async function loadData() {
       const { data, error } = await sb.from(TABLE).select('*').order('created_at');
       if (error) {
-        els.canvas.innerHTML = '<div class="oc-empty-hint">Couldn\u2019t load the org chart right now. Try refreshing.</div>';
-        console.error(error);
+        const setupMissing = error.code === '42P01' || error.code === 'PGRST205';
+        els.canvas.innerHTML = '<div class="oc-empty-hint">' +
+          (setupMissing
+            ? 'The org chart database setup hasn\u2019t been completed yet.'
+            : 'Couldn\u2019t load the org chart right now. Try refreshing.') +
+          '</div>';
+        console.error('OrgChart load failed:', error);
         return;
       }
       rows = data || [];
@@ -231,7 +246,16 @@
     }
 
     function render() {
-      if (!rows.length) { els.canvas.innerHTML = '<div class="oc-empty-hint">No one on the chart yet.</div>'; return; }
+      if (!rows.length) {
+        els.canvas.style.width = '100%';
+        els.canvas.style.height = 'auto';
+        els.canvas.innerHTML = '<div class="oc-empty-hint">No one on the chart yet.' +
+          (isAdmin ? '<br><button class="oc-btn oc-btn-solid" data-oc-first style="margin-top:14px;">Add first person</button>' : '') +
+          '</div>';
+        const firstBtn = els.canvas.querySelector('[data-oc-first]');
+        if (firstBtn) firstBtn.onclick = function () { openPersonModal('add', { manager_id: null }); };
+        return;
+      }
       const layout = layoutTree(rows);
       const byId = nodesById();
       const width = Math.max(layout.width, 600), height = layout.height;

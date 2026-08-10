@@ -5,7 +5,9 @@
    block (or as a <link>) so the variables are already in scope.
 --------------------------------------------------------------------------- */
 
-.oc-wrap { width: 100%; }
+#teamChartMount { width: 100%; min-width: 0; }
+.oc-wrap { width: 100%; min-width: 0; height: 100%; }
+#teamChartMount .oc-canvas-scroll { border: 0; border-radius: 0; box-shadow: none; min-height: 100%; }
 
 .oc-btn {
   display: inline-flex; align-items: center; gap: 6px;
