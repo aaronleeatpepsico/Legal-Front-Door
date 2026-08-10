@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/org-chart.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -48,8 +49,8 @@ body{font-family:'Poppins',Arial,sans-serif;background:#eef2f6;color:var(--text-
 header{background:var(--pep-navy);padding:0 32px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
 header .title{color:#fff;font-size:14px;font-weight:600;letter-spacing:0.01em;}
 header .title span{color:var(--pep-blue);}
-.tabs{display:flex;gap:2px;}
-.tab-btn{background:none;border:none;color:rgba(255,255,255,.55);font-family:inherit;font-size:12.5px;font-weight:500;padding:8px 16px;border-radius:100px;cursor:pointer;transition:background var(--t),color var(--t);}
+.tabs{display:flex;gap:2px;overflow-x:auto;flex:1;margin:0 20px;scrollbar-width:thin;}
+.tab-btn{flex-shrink:0;background:none;border:none;color:rgba(255,255,255,.55);font-family:inherit;font-size:12.5px;font-weight:500;padding:8px 16px;border-radius:100px;cursor:pointer;transition:background var(--t),color var(--t);}
 .tab-btn:hover{color:#fff;background:rgba(255,255,255,.08);}
 .tab-btn.active{color:#fff;background:rgba(255,255,255,.14);}
 main{max-width:1100px;margin:0 auto;padding:32px 24px 64px;}
@@ -165,6 +166,7 @@ table.analytics tr:last-child td{border-bottom:none;}
     </a>
     <div class="tabs">
       <button class="tab-btn active" data-tab="content">Content</button>
+      <button class="tab-btn" data-tab="orgchart">Org Chart</button>
       <button class="tab-btn" data-tab="destinations">Destinations</button>
       <button class="tab-btn" data-tab="tools">Tools</button>
       <button class="tab-btn" data-tab="training">Training</button>
@@ -187,6 +189,15 @@ table.analytics tr:last-child td{border-bottom:none;}
         <div class="ou-list" id="ouList"></div>
         <div id="ouDetail"><div class="empty-hint">Select an operating unit to edit its content.</div></div>
       </div>
+    </div>
+
+    <div class="panel" id="panel-orgchart">
+      <div class="section-title">APAC Legal org chart</div>
+      <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px;max-width:720px;">
+        Click a person to edit their details, add a direct report or remove them.
+        Drag a person onto another card to change their manager.
+      </p>
+      <div id="adminOrgChartMount"></div>
     </div>
 
     <div class="panel" id="panel-destinations">
@@ -397,6 +408,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'orgchart') loadOrgChartTab();
     if (btn.dataset.tab === 'analytics') loadAnalytics();
     if (btn.dataset.tab === 'reports') loadReports();
     if (btn.dataset.tab === 'tools') loadToolsTab();
@@ -464,6 +476,18 @@ function enableDragReorder(container, itemSelector, table, onDone, orientation){
 
 /* ── APP STATE ── */
 let OUS = [], SUBS = [], LINKS = [], activeOuId = null;
+
+let adminOrgChartCtrl = null;
+
+function loadOrgChartTab(){
+  const mount = document.getElementById('adminOrgChartMount');
+  if (!mount || typeof OrgChart === 'undefined') return;
+  if (!adminOrgChartCtrl) {
+    adminOrgChartCtrl = OrgChart.mountPage(mount, { editable: true });
+  } else {
+    adminOrgChartCtrl.refresh();
+  }
+}
 
 function initApp(){
   loadContentTab();
@@ -1282,5 +1306,6 @@ async function loadReports(){
   }));
 }
 </script>
+<script src="/org-chart-widget.js"></script>
 </body>
 </html>

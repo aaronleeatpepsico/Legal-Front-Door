@@ -1808,7 +1808,9 @@ let _teamChartCtrl = null;
 function openOrgModal(){
   document.getElementById('omo').classList.add('open');
   document.body.style.overflow='hidden';
-  if (!_teamChartCtrl) { _teamChartCtrl = OrgChart.mountPage(document.getElementById('teamChartMount')); }
+  if (!_teamChartCtrl) {
+    _teamChartCtrl = OrgChart.mountPage(document.getElementById('teamChartMount'), { editable: false });
+  }
   else { _teamChartCtrl.refresh(); }
 }
 function openFeedbackModal(){document.getElementById('fbo').classList.add('open');document.body.style.overflow='hidden';}
