@@ -174,7 +174,9 @@
   }
 
   // --- controller: one per mounted instance -----------------------------
-  function createController(containerEl) {
+  function createController(containerEl, options) {
+    options = options || {};
+    const editingAllowed = options.editable !== false;
     let rows = [];
     let isAdmin = false;
     let selectedId = null;
@@ -222,7 +224,7 @@
       isAdmin = false;
       if (session) {
         const { data: adminRow } = await sb.from('admins').select('email').ilike('email', session.user.email).maybeSingle();
-        isAdmin = !!adminRow;
+        isAdmin = editingAllowed && !!adminRow;
       }
       els.legend.textContent = isAdmin
         ? 'Signed in as admin. Click a person to edit, add a report, or remove them. Drag a card onto another to reassign.'
@@ -513,8 +515,8 @@
   }
 
   window.OrgChart = {
-    mountPage: function (containerEl) {
-      const c = createController(containerEl);
+    mountPage: function (containerEl, options) {
+      const c = createController(containerEl, options);
       c.init();
       return c;
     }
