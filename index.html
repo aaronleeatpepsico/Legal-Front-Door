@@ -1674,7 +1674,7 @@ frame();
 #omm{
   background:#f0f4f8;border-radius:16px;
   box-shadow:0 32px 80px rgba(2,53,90,0.22);
-  width:96vw;max-width:1400px;height:92vh;
+  width:calc(100vw - 24px);max-width:none;height:calc(100vh - 24px);
   display:flex;flex-direction:column;overflow:hidden;
   transform:scale(0.96) translateY(12px);
   transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);
@@ -1693,7 +1693,7 @@ frame();
   cursor:pointer;transition:all 0.15s ease;display:flex;align-items:center;gap:6px;
 }
 .omc:hover{background:var(--pep-navy);border-color:var(--pep-navy);color:#fff;}
-.omb{flex:1;overflow:auto;display:flex;align-items:flex-start;}
+.omb{flex:1;overflow:hidden;display:flex;align-items:flex-start;}
 </style>
 
 <!-- ═══ FEEDBACK MODAL ═══ -->
