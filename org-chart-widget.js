@@ -422,37 +422,44 @@
 
       let svg = '<svg width="' + width + '" height="' + height + '">';
 
-      function drawLeftTrunk(edge, dotted) {
-        if (!edge.children.length) return;
-        const childLefts = edge.children.map(function (c) { return c.x - NODE_W / 2; });
-        const childYs = edge.children.map(function (c) { return c.y; });
-        const trunkX = Math.min.apply(null, childLefts) - (dotted ? 16 : 9);
-        const allBelow = Math.min.apply(null, childYs) > edge.parent.y;
-        const managerAnchorY = edge.parent.y + (allBelow ? NODE_H / 2 : -NODE_H / 2);
-        const trunkJoinY = managerAnchorY + (allBelow ? 9 : -9);
-        const minY = Math.min.apply(null, childYs.concat([trunkJoinY]));
-        const maxY = Math.max.apply(null, childYs.concat([trunkJoinY]));
+      function drawRelationship(edge, dotted) {
+        const field = dotted ? 'dotted_route_x' : 'direct_route_x';
+        const type = dotted ? 'dotted' : 'direct';
         const stroke = dotted ? '#6f8fab' : '#8ca9c1';
         const lineWidth = dotted ? 1.5 : 1.7;
         const dash = dotted ? ' stroke-dasharray="5 4"' : '';
-        svg += '<line x1="' + edge.parent.x + '" y1="' + managerAnchorY +
-          '" x2="' + edge.parent.x + '" y2="' + trunkJoinY +
-          '" stroke="' + stroke + '" stroke-width="' + lineWidth + '"' + dash + '/>';
-        svg += '<line x1="' + edge.parent.x + '" y1="' + trunkJoinY +
-          '" x2="' + trunkX + '" y2="' + trunkJoinY +
-          '" stroke="' + stroke + '" stroke-width="' + lineWidth + '"' + dash + '/>';
-        svg += '<line x1="' + trunkX + '" y1="' + minY +
-          '" x2="' + trunkX + '" y2="' + maxY +
-          '" stroke="' + stroke + '" stroke-width="' + lineWidth + '"' + dash + '/>';
         edge.children.forEach(function (child) {
-          svg += '<line x1="' + trunkX + '" y1="' + child.y +
-            '" x2="' + (child.x - NODE_W / 2) + '" y2="' + child.y +
-            '" stroke="' + stroke + '" stroke-width="' + lineWidth + '"' + dash + '/>';
+          const row = byId[child.id];
+          const childLeft = child.x - NODE_W / 2;
+          const allBelow = child.y > edge.parent.y;
+          const managerAnchorY = edge.parent.y + (allBelow ? NODE_H / 2 : -NODE_H / 2);
+          const joinY = managerAnchorY + (allBelow ? 9 : -9);
+          const savedRouteX = Number(row && row[field]);
+          const routeX = Number.isFinite(savedRouteX)
+            ? savedRouteX
+            : Math.min(childLeft, edge.parent.x) - (dotted ? 16 : 9);
+          const points = [
+            edge.parent.x + ',' + managerAnchorY,
+            edge.parent.x + ',' + joinY,
+            routeX + ',' + joinY,
+            routeX + ',' + child.y,
+            childLeft + ',' + child.y
+          ].join(' ');
+          svg += '<polyline points="' + points + '" fill="none" stroke="' + stroke +
+            '" stroke-width="' + lineWidth + '"' + dash + '/>';
+          if (isAdmin) {
+            svg += '<polyline class="oc-line-hit" points="' + points +
+              '" fill="none" stroke="transparent" stroke-width="14" data-oc-line="' +
+              child.id + '" data-oc-line-type="' + type + '"/>';
+            svg += '<circle class="oc-line-handle" cx="' + routeX + '" cy="' +
+              ((joinY + child.y) / 2) + '" r="5" data-oc-line="' + child.id +
+              '" data-oc-line-type="' + type + '"/>';
+          }
         });
       }
 
-      (layout.dottedEdges || []).forEach(function (edge) { drawLeftTrunk(edge, true); });
-      layout.edges.forEach(function (edge) { drawLeftTrunk(edge, false); });
+      (layout.dottedEdges || []).forEach(function (edge) { drawRelationship(edge, true); });
+      layout.edges.forEach(function (edge) { drawRelationship(edge, false); });
       svg += '</svg>';
 
       let cards = '';
@@ -496,7 +503,50 @@
           '</div>' + expand + '</div>';
       });
       els.canvas.innerHTML = svg + cards;
+      wireConnectorEvents(byId);
       wireCardEvents(byId, layout.positions);
+    }
+
+    function wireConnectorEvents(byId) {
+      if (!isAdmin) return;
+      els.canvas.querySelectorAll('[data-oc-line]').forEach(function (line) {
+        line.addEventListener('pointerdown', function (e) {
+          if (connectMode || e.button !== 0) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const reportId = line.getAttribute('data-oc-line');
+          const type = line.getAttribute('data-oc-line-type');
+          const field = type === 'dotted' ? 'dotted_route_x' : 'direct_route_x';
+          const report = byId[reportId];
+          if (!report) return;
+          line.setPointerCapture(e.pointerId);
+          els.canvas.classList.add('oc-routing');
+          let nextX = e.clientX - els.canvas.getBoundingClientRect().left;
+          function onMove(moveEvent) {
+            nextX = Math.max(20, moveEvent.clientX - els.canvas.getBoundingClientRect().left);
+            els.canvas.querySelectorAll('[data-oc-line="' + reportId + '"][data-oc-line-type="' + type + '"]')
+              .forEach(function (part) {
+                if (part.tagName.toLowerCase() === 'circle') part.setAttribute('cx', nextX);
+              });
+          }
+          async function onUp() {
+            line.removeEventListener('pointermove', onMove);
+            line.removeEventListener('pointerup', onUp);
+            line.removeEventListener('pointercancel', onUp);
+            els.canvas.classList.remove('oc-routing');
+            report[field] = nextX;
+            const update = { updated_at: new Date().toISOString() };
+            update[field] = nextX;
+            const result = await sb.from(TABLE).update(update).eq('id', reportId);
+            if (result.error) showToast('Could not save line route: ' + result.error.message);
+            else showToast('Line route saved');
+            render();
+          }
+          line.addEventListener('pointermove', onMove);
+          line.addEventListener('pointerup', onUp);
+          line.addEventListener('pointercancel', onUp);
+        });
+      });
     }
 
     function wireCardEvents(byId, positions) {
