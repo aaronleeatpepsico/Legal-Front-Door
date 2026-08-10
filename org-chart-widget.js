@@ -209,10 +209,26 @@
       }
     });
 
+    const dottedByManager = {};
+    rows.forEach(function (row) {
+      if (!row.dotted_manager_id || !positions[row.id] || !positions[row.dotted_manager_id]) return;
+      (dottedByManager[row.dotted_manager_id] = dottedByManager[row.dotted_manager_id] || []).push(row);
+    });
+    const dottedEdges = Object.keys(dottedByManager).map(function (managerId) {
+      return {
+        parentId: managerId,
+        parent: positions[managerId],
+        children: dottedByManager[managerId].map(function (child) {
+          return { id: child.id, x: positions[child.id].x, y: positions[child.id].y };
+        })
+      };
+    });
+
     return {
       byId: byId,
       positions: positions,
       edges: edges,
+      dottedEdges: dottedEdges,
       width: width,
       height: maxY + NODE_H / 2 + BOTTOM_PAD
     };
@@ -279,9 +295,9 @@
         const { data: adminRow } = await sb.from('admins').select('email').ilike('email', session.user.email).maybeSingle();
         isAdmin = editingAllowed && !!adminRow;
       }
-      els.legend.textContent = isAdmin
-        ? 'Signed in as admin. Click a person to edit, add a report, or remove them. Drag a card onto another to reassign.'
-        : '';
+      els.legend.textContent = (isAdmin
+        ? 'Admin: click a person to edit, add or delete. Drag a card to change its direct manager. '
+        : '') + 'Solid lines show direct management; dotted lines show matrix management.';
     }
 
     async function loadData() {
@@ -318,6 +334,25 @@
       els.canvas.style.height = height + 'px';
 
       let svg = '<svg width="' + width + '" height="' + height + '">';
+
+      // Dotted-line (matrix) relationships use the same fan-out visual
+      // grammar as direct reports, but remain visually secondary.
+      (layout.dottedEdges || []).forEach(function (edge) {
+        const parentBottom = edge.parent.y + NODE_H / 2;
+        const childTops = edge.children.map(function (c) { return c.y - NODE_H / 2; });
+        const nearestChildTop = Math.min.apply(null, childTops);
+        const busY = parentBottom + Math.max(10, (nearestChildTop - parentBottom) / 2);
+        const xs = edge.children.map(function (c) { return c.x; }).concat([edge.parent.x]);
+        const minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
+        svg += '<line x1="' + edge.parent.x + '" y1="' + parentBottom + '" x2="' + edge.parent.x + '" y2="' + busY + '" stroke="#7a9ab8" stroke-width="1.3" stroke-dasharray="4 4"/>';
+        if (edge.children.length > 1 || minX !== maxX) {
+          svg += '<line x1="' + minX + '" y1="' + busY + '" x2="' + maxX + '" y2="' + busY + '" stroke="#7a9ab8" stroke-width="1.3" stroke-dasharray="4 4"/>';
+        }
+        edge.children.forEach(function (c) {
+          svg += '<line x1="' + c.x + '" y1="' + busY + '" x2="' + c.x + '" y2="' + (c.y - NODE_H / 2) + '" stroke="#7a9ab8" stroke-width="1.3" stroke-dasharray="4 4"/>';
+        });
+      });
+
       layout.edges.forEach(function (edge) {
         const busY = edge.parent.y + NODE_H / 2 + V_GAP / 2;
         const xs = edge.children.map(function (c) { return c.x; }).concat([edge.parent.x]);
@@ -468,9 +503,28 @@
     function openPersonModal(mode, seed) {
       const isEdit = mode === 'edit';
       const data = isEdit
-        ? { id: seed.id, name: seed.name || '', role: seed.role || '', email: seed.email || '', description: seed.description || '', photo_url: seed.photo_url || null }
-        : { manager_id: seed.manager_id, name: '', role: '', email: '', description: '', photo_url: null };
+        ? {
+            id: seed.id, name: seed.name || '', role: seed.role || '', email: seed.email || '',
+            description: seed.description || '', photo_url: seed.photo_url || null,
+            manager_id: seed.manager_id || null, dotted_manager_id: seed.dotted_manager_id || null
+          }
+        : {
+            manager_id: seed.manager_id || null, dotted_manager_id: null,
+            name: '', role: '', email: '', description: '', photo_url: null
+          };
       let pendingPhotoFile = null;
+
+      const directExcluded = isEdit ? getDescendantIds(rows, data.id) : new Set();
+      if (isEdit) directExcluded.add(data.id);
+      function managerOptions(selectedId, excluded, emptyLabel) {
+        return '<option value="">' + emptyLabel + '</option>' + rows
+          .filter(function (person) { return !excluded.has(person.id); })
+          .map(function (person) {
+            return '<option value="' + person.id + '"' + (person.id === selectedId ? ' selected' : '') + '>' +
+              escHtml(person.name) + (person.role ? ' — ' + escHtml(person.role) : '') + '</option>';
+          }).join('');
+      }
+      const dottedExcluded = new Set(isEdit ? [data.id] : []);
 
       els.modals.innerHTML =
         '<div class="oc-modal-overlay oc-open" data-oc-close="overlay">' +
@@ -492,6 +546,14 @@
             '<input class="oc-input" name="name" value="' + escHtml(data.name) + '" placeholder="Full name" required>' +
             '<label class="oc-field-label">Role</label>' +
             '<input class="oc-input" name="role" value="' + escHtml(data.role) + '" placeholder="Job title">' +
+            '<label class="oc-field-label">Direct manager <span style="font-weight:400;text-transform:none;">(solid line)</span></label>' +
+            '<select class="oc-input" name="manager_id">' +
+              managerOptions(data.manager_id, directExcluded, 'No direct manager — top level') +
+            '</select>' +
+            '<label class="oc-field-label">Matrix manager <span style="font-weight:400;text-transform:none;">(dotted line)</span></label>' +
+            '<select class="oc-input" name="dotted_manager_id">' +
+              managerOptions(data.dotted_manager_id, dottedExcluded, 'No dotted-line manager') +
+            '</select>' +
             '<label class="oc-field-label">Email</label>' +
             '<input class="oc-input" name="email" type="email" value="' + escHtml(data.email) + '" placeholder="name@pepsico.com">' +
             '<label class="oc-field-label">Description</label>' +
@@ -538,9 +600,17 @@
           role: form.role.value.trim() || 'Team Member',
           email: form.email.value.trim(),
           description: form.description.value.trim(),
+          manager_id: form.manager_id.value || null,
+          dotted_manager_id: form.dotted_manager_id.value || null,
           updated_at: new Date().toISOString()
         };
-        if (!isEdit) payload.manager_id = data.manager_id;
+
+        const saveError = form.querySelector('[data-oc="saveError"]');
+        if (payload.manager_id && payload.manager_id === payload.dotted_manager_id) {
+          saveError.textContent = 'Direct manager and matrix manager must be different people.';
+          submitBtn.disabled = false;
+          return;
+        }
 
         try {
           if (pendingPhotoFile === 'REMOVE') {
@@ -565,7 +635,6 @@
           closeModal();
           await loadData();
         } catch (err) {
-          const saveError = form.querySelector('[data-oc="saveError"]');
           const denied = err && (err.code === '42501' || /permission denied/i.test(err.message || ''));
           saveError.textContent = denied
             ? 'Your signed-in account is not recognised by the org chart write policy. Run the latest 17_org_chart.sql migration and try again.'
