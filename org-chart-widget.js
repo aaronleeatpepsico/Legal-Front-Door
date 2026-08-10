@@ -132,16 +132,19 @@
       return out;
     }
 
-    // The supplied chart has one executive root. Multiple disconnected roots
-    // are still rendered as peer branches rather than silently disappearing.
-    const executive = roots.length === 1 ? roots[0] : null;
-    const topChildren = executive ? executive.children.slice() : roots.slice();
+    // Use the top-level person with the largest direct organisation as the
+    // executive anchor. Other top-level people (including dotted-line reports
+    // without a direct manager) remain aligned on the leadership tier.
+    const executive = roots.slice().sort(function (a, b) {
+      return b.children.length - a.children.length;
+    })[0] || null;
+    const topChildren = executive
+      ? executive.children.slice().concat(roots.filter(function (r) { return r.id !== executive.id; }))
+      : roots.slice();
     const assistants = executive
       ? topChildren.filter(function (n) { return /executive assistant/i.test(n.role || ''); })
       : [];
-    const branches = executive
-      ? topChildren.filter(function (n) { return assistants.indexOf(n) === -1; })
-      : topChildren;
+    const branches = topChildren.filter(function (n) { return assistants.indexOf(n) === -1; });
 
     const groups = branches.map(function (branch) {
       const directSubtrees = branch.children.map(function (child) { return flatten(child, []); });
