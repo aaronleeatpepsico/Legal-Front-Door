@@ -33,26 +33,28 @@
 .oc-line-visible { pointer-events: none; }
 .oc-line-hit { pointer-events: stroke; cursor: ew-resize; touch-action: none; }
 .oc-line-handle {
-  pointer-events: all; cursor: ew-resize; touch-action: none;
+  pointer-events: all; touch-action: none;
   fill: #fff; stroke: var(--pep-blue); stroke-width: 2;
-  opacity: 0; transition: opacity var(--t);
+  opacity: 0.45; transition: opacity var(--t);
 }
-.oc-line-hit:hover + .oc-line-handle,
 .oc-line-handle:hover,
 .oc-canvas.oc-routing .oc-line-handle { opacity: 1; }
-.oc-canvas.oc-routing { cursor: ew-resize; user-select: none; }
+.oc-line-handle-x { cursor: ew-resize; }
+.oc-line-handle-y { cursor: ns-resize; }
+.oc-canvas.oc-routing { user-select: none; }
 
 .oc-card {
-  position: absolute; width: 148px;
+  position: absolute; width: 160px;
   background: var(--off-white); border: 1.5px solid var(--border);
   border-radius: 9px; padding: 8px 9px;
   transform: translate(-50%, -50%);
   transition: border-color var(--t), box-shadow var(--t), opacity var(--t);
   box-shadow: 0 1px 3px rgba(2,53,90,0.06);
   font-family: var(--font-body);
+  border-top: 3px solid var(--oc-accent, var(--border));
 }
-.oc-card:hover { border-color: var(--pep-blue); }
-.oc-card.oc-selected { border-color: var(--pep-navy); box-shadow: 0 8px 20px rgba(2,53,90,0.14); z-index: 10; }
+.oc-card:hover { border-color: var(--pep-blue); border-top-color: var(--oc-accent, var(--pep-blue)); }
+.oc-card.oc-selected { border-color: var(--pep-navy); border-top-color: var(--oc-accent, var(--pep-navy)); box-shadow: 0 8px 20px rgba(2,53,90,0.14); z-index: 10; }
 .oc-card.oc-drop-target { background: #eaf1fb; border-color: var(--pep-blue); }
 .oc-card.oc-dragging { opacity: 0.35; }
 .oc-card.oc-admin { cursor: grab; }
@@ -72,6 +74,14 @@
 }
 .oc-role {
   font-size: 9.5px; font-weight: 400; color: var(--text-muted); margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.oc-dept {
+  font-size: 9px; font-weight: 500; color: var(--pep-blue); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.oc-loc {
+  font-size: 8.5px; font-weight: 400; color: var(--text-muted); margin-top: 1px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .oc-card-expand { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
@@ -140,7 +150,7 @@
 .oc-line-swatch { width:19px;border-top:2px solid #7695ae; }
 .oc-line-dotted { border-top-style:dashed; }
 .oc-canvas-scroll { min-height:620px; }
-.oc-canvas { min-height:620px;background-color:#fff;background-image:radial-gradient(circle,rgba(111,143,171,.2) 1px,transparent 1px);background-size:20px 20px; }
+.oc-canvas { min-height:620px;background-color:#fff;background-image:radial-gradient(circle,rgba(111,143,171,.18) 1px,transparent 1px);background-size:20px 20px; }
 .oc-card.oc-admin { cursor:move;touch-action:none;user-select:none; }
 .oc-card.oc-moving { cursor:grabbing;z-index:50;box-shadow:0 12px 28px rgba(2,53,90,.22);transition:none; }
 .oc-card.oc-connectable { cursor:crosshair; }
@@ -171,3 +181,6 @@
   border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg);
 }
 .oc-card.oc-admin .oc-card-top { padding-left:14px; }
+.oc-color-row { display:flex;align-items:center;gap:8px;margin-top:4px; }
+.oc-color-row input[type="color"] { width:34px;height:28px;padding:2px;border:1px solid var(--border-mid);border-radius:6px;cursor:pointer;background:none; }
+.oc-color-state { font-size:11px;color:var(--text-muted); }

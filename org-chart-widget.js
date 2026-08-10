@@ -69,7 +69,7 @@
   const BUCKET = 'org-photos';
 
   // --- layout geometry -------------------------------------------------
-  const NODE_W = 148, NODE_H = 52, H_GAP = 16, V_GAP = 14, SIDE_PAD = 24, TOP_PAD = 24, BOTTOM_PAD = 24;
+  const NODE_W = 160, NODE_H = 72, H_GAP = 16, V_GAP = 16, SIDE_PAD = 24, TOP_PAD = 24, BOTTOM_PAD = 24;
 
   function escHtml(s) {
     if (s === null || s === undefined) return '';
@@ -432,7 +432,8 @@
       let svg = '<svg width="' + width + '" height="' + height + '">';
 
       function drawRelationship(edge, dotted) {
-        const field = dotted ? 'dotted_route_x' : 'direct_route_x';
+        const routeXField = dotted ? 'dotted_route_x' : 'direct_route_x';
+        const routeYField = dotted ? 'dotted_route_y' : 'direct_route_y';
         const type = dotted ? 'dotted' : 'direct';
         const stroke = dotted ? '#6f8fab' : '#8ca9c1';
         const lineWidth = dotted ? 1.5 : 1.7;
@@ -442,15 +443,17 @@
           const childLeft = child.x - NODE_W / 2;
           const allBelow = child.y > edge.parent.y;
           const managerAnchorY = edge.parent.y + (allBelow ? NODE_H / 2 : -NODE_H / 2);
-          const joinY = managerAnchorY + (allBelow ? 9 : -9);
-          const savedRouteX = Number(row && row[field]);
+          const savedRouteX = Number(row && row[routeXField]);
           const routeX = Number.isFinite(savedRouteX)
             ? savedRouteX
             : Math.min(childLeft, edge.parent.x) - (dotted ? 16 : 9);
+          const savedRouteY = Number(row && row[routeYField]);
+          const defaultRouteY = managerAnchorY + Math.max(18, (child.y - NODE_H / 2 - managerAnchorY) * 0.5);
+          const routeY = Number.isFinite(savedRouteY) ? savedRouteY : defaultRouteY;
           const points = [
             edge.parent.x + ',' + managerAnchorY,
-            edge.parent.x + ',' + joinY,
-            routeX + ',' + joinY,
+            edge.parent.x + ',' + routeY,
+            routeX + ',' + routeY,
             routeX + ',' + child.y,
             childLeft + ',' + child.y
           ].join(' ');
@@ -461,9 +464,12 @@
             svg += '<polyline class="oc-line-hit" points="' + points +
               '" fill="none" stroke="transparent" stroke-width="14" data-oc-line="' +
               child.id + '" data-oc-line-manager="' + edge.parentId + '" data-oc-line-type="' + type + '"/>';
-            svg += '<circle class="oc-line-handle" cx="' + routeX + '" cy="' +
-              ((joinY + child.y) / 2) + '" r="5" data-oc-line="' + child.id +
-              '" data-oc-line-manager="' + edge.parentId + '" data-oc-line-type="' + type + '"/>';
+            svg += '<circle class="oc-line-handle oc-line-handle-x" cx="' + routeX + '" cy="' +
+              ((routeY + child.y) / 2) + '" r="5" data-oc-line="' + child.id +
+              '" data-oc-line-manager="' + edge.parentId + '" data-oc-line-type="' + type + '" data-oc-handle="x"/>';
+            svg += '<circle class="oc-line-handle oc-line-handle-y" cx="' + ((edge.parent.x + routeX) / 2) + '" cy="' +
+              routeY + '" r="5" data-oc-line="' + child.id +
+              '" data-oc-line-manager="' + edge.parentId + '" data-oc-line-type="' + type + '" data-oc-handle="y"/>';
           }
         });
       }
@@ -507,11 +513,14 @@
             (n.description ? '<div class="oc-desc">' + escHtml(n.description) + '</div>' : '') +
             '<div class="oc-actions">' + pills + '</div></div>';
         }
-        cards += '<div class="' + classes.join(' ') + '" style="left:' + pos.x + 'px;top:' + pos.y + 'px;" data-oc-card="' + n.id + '">' +
+        const accentStyle = n.team_color ? ';--oc-accent:' + escHtml(n.team_color) : '';
+        const deptHtml = n.department ? '<div class="oc-dept" title="' + escHtml(n.department) + '">' + escHtml(n.department) + '</div>' : '';
+        const locHtml = n.location ? '<div class="oc-loc" title="' + escHtml(n.location) + '">' + escHtml(n.location) + '</div>' : '';
+        cards += '<div class="' + classes.join(' ') + '" style="left:' + pos.x + 'px;top:' + pos.y + 'px' + accentStyle + ';" data-oc-card="' + n.id + '">' +
           (isAdmin ? '<label class="oc-select-box" title="Select person"><input type="checkbox" data-oc-select="' + n.id + '"' + (isMultiSelected ? ' checked' : '') + ' aria-label="Select ' + escHtml(n.name) + '"><span></span></label><span class="oc-grip" title="Drag to move">⠿</span>' : '') +
           '<div class="oc-card-top">' + avatar +
             '<div style="min-width:0;padding-right:10px;"><div class="oc-name" title="' + escHtml(n.name) + '">' + escHtml(n.name) + '</div>' +
-            '<div class="oc-role" title="' + escHtml(n.role || '') + '">' + escHtml(n.role || '') + '</div></div>' +
+            '<div class="oc-role" title="' + escHtml(n.role || '') + '">' + escHtml(n.role || '') + '</div>' + deptHtml + locHtml + '</div>' +
           '</div>' + expand + '</div>';
       });
       els.canvas.innerHTML = svg + cards;
@@ -521,49 +530,74 @@
 
     function wireConnectorEvents(byId) {
       if (!isAdmin) return;
-      els.canvas.querySelectorAll('[data-oc-line]').forEach(function (line) {
-        line.addEventListener('pointerdown', function (e) {
+      els.canvas.querySelectorAll('.oc-line-handle').forEach(function (handle) {
+        handle.addEventListener('pointerdown', function (e) {
           if (connectMode || e.button !== 0) return;
           e.preventDefault();
           e.stopPropagation();
-          const reportId = line.getAttribute('data-oc-line');
-          const type = line.getAttribute('data-oc-line-type');
-          const field = type === 'dotted' ? 'dotted_route_x' : 'direct_route_x';
+          const reportId = handle.getAttribute('data-oc-line');
+          const type = handle.getAttribute('data-oc-line-type');
+          const isXHandle = handle.getAttribute('data-oc-handle') === 'x';
+          const field = type === 'dotted'
+            ? (isXHandle ? 'dotted_route_x' : 'dotted_route_y')
+            : (isXHandle ? 'direct_route_x' : 'direct_route_y');
           const report = byId[reportId];
           if (!report) return;
-          line.setPointerCapture(e.pointerId);
+          handle.setPointerCapture(e.pointerId);
           els.canvas.classList.add('oc-routing');
-          let nextX = e.clientX - els.canvas.getBoundingClientRect().left;
+          const rect = els.canvas.getBoundingClientRect();
+          let nextVal = isXHandle ? (e.clientX - rect.left) : (e.clientY - rect.top);
+
           function onMove(moveEvent) {
-            nextX = Math.max(20, moveEvent.clientX - els.canvas.getBoundingClientRect().left);
-            els.canvas.querySelectorAll('[data-oc-line="' + reportId + '"][data-oc-line-type="' + type + '"]')
-              .forEach(function (part) {
-                if (part.tagName.toLowerCase() === 'circle') {
-                  part.setAttribute('cx', nextX);
-                } else {
-                  const points = part.getAttribute('points').split(' ');
-                  points[2] = nextX + ',' + points[2].split(',')[1];
-                  points[3] = nextX + ',' + points[3].split(',')[1];
-                  part.setAttribute('points', points.join(' '));
-                }
-              });
+            const r = els.canvas.getBoundingClientRect();
+            nextVal = Math.max(20, isXHandle ? (moveEvent.clientX - r.left) : (moveEvent.clientY - r.top));
+            els.canvas.querySelectorAll(
+              '.oc-line-visible[data-oc-line="' + reportId + '"][data-oc-line-type="' + type + '"],' +
+              '.oc-line-hit[data-oc-line="' + reportId + '"][data-oc-line-type="' + type + '"]'
+            ).forEach(function (line) {
+              const pts = line.getAttribute('points').split(' ');
+              if (isXHandle) {
+                pts[2] = nextVal + ',' + pts[2].split(',')[1];
+                pts[3] = nextVal + ',' + pts[3].split(',')[1];
+              } else {
+                pts[1] = pts[1].split(',')[0] + ',' + nextVal;
+                pts[2] = pts[2].split(',')[0] + ',' + nextVal;
+              }
+              line.setAttribute('points', pts.join(' '));
+            });
+            const vis = els.canvas.querySelector(
+              '.oc-line-visible[data-oc-line="' + reportId + '"][data-oc-line-type="' + type + '"]'
+            );
+            if (vis) {
+              const pts = vis.getAttribute('points').split(' ');
+              const parentX = parseFloat(pts[0].split(',')[0]);
+              const routeX = parseFloat(pts[2].split(',')[0]);
+              const routeY = parseFloat(pts[1].split(',')[1]);
+              const childY = parseFloat(pts[3].split(',')[1]);
+              const xH = els.canvas.querySelector('.oc-line-handle-x[data-oc-line="' + reportId + '"][data-oc-line-type="' + type + '"]');
+              const yH = els.canvas.querySelector('.oc-line-handle-y[data-oc-line="' + reportId + '"][data-oc-line-type="' + type + '"]');
+              if (xH) { xH.setAttribute('cx', routeX); xH.setAttribute('cy', (routeY + childY) / 2); }
+              if (yH) { yH.setAttribute('cx', (parentX + routeX) / 2); yH.setAttribute('cy', routeY); }
+            }
           }
+
           async function onUp() {
-            line.removeEventListener('pointermove', onMove);
-            line.removeEventListener('pointerup', onUp);
-            line.removeEventListener('pointercancel', onUp);
+            handle.removeEventListener('pointermove', onMove);
+            handle.removeEventListener('pointerup', onUp);
+            handle.removeEventListener('pointercancel', onUp);
             els.canvas.classList.remove('oc-routing');
-            report[field] = nextX;
+            report[field] = nextVal;
             const update = { updated_at: new Date().toISOString() };
-            update[field] = nextX;
+            update[field] = nextVal;
             const result = await sb.from(TABLE).update(update).eq('id', reportId);
             if (result.error) showToast('Could not save line route: ' + result.error.message);
             else showToast('Line route saved');
             render();
           }
-          line.addEventListener('pointermove', onMove);
-          line.addEventListener('pointerup', onUp);
-          line.addEventListener('pointercancel', onUp);
+
+          handle.addEventListener('pointermove', onMove);
+          handle.addEventListener('pointerup', onUp);
+          handle.addEventListener('pointercancel', onUp);
         });
       });
     }
@@ -577,28 +611,30 @@
           const reportPos = positions[reportId], managerPos = positions[managerId];
           if (!reportPos || !managerPos) return;
           const row = byId[reportId];
-          const field = type === 'dotted' ? 'dotted_route_x' : 'direct_route_x';
+          const routeXField = type === 'dotted' ? 'dotted_route_x' : 'direct_route_x';
+          const routeYField = type === 'dotted' ? 'dotted_route_y' : 'direct_route_y';
           const childLeft = reportPos.x - NODE_W / 2;
           const allBelow = reportPos.y > managerPos.y;
           const managerAnchorY = managerPos.y + (allBelow ? NODE_H / 2 : -NODE_H / 2);
-          const joinY = managerAnchorY + (allBelow ? 9 : -9);
-          const savedRouteX = Number(row && row[field]);
+          const savedRouteX = Number(row && row[routeXField]);
           const routeX = Number.isFinite(savedRouteX)
             ? savedRouteX
             : Math.min(childLeft, managerPos.x) - (type === 'dotted' ? 16 : 9);
+          const savedRouteY = Number(row && row[routeYField]);
+          const routeY = Number.isFinite(savedRouteY)
+            ? savedRouteY
+            : managerAnchorY + Math.max(18, (reportPos.y - NODE_H / 2 - managerAnchorY) * 0.5);
           line.setAttribute('points', [
             managerPos.x + ',' + managerAnchorY,
-            managerPos.x + ',' + joinY,
-            routeX + ',' + joinY,
+            managerPos.x + ',' + routeY,
+            routeX + ',' + routeY,
             routeX + ',' + reportPos.y,
             childLeft + ',' + reportPos.y
           ].join(' '));
-          const handle = els.canvas.querySelector('.oc-line-handle[data-oc-line="' + reportId +
-            '"][data-oc-line-type="' + type + '"]');
-          if (handle) {
-            handle.setAttribute('cx', routeX);
-            handle.setAttribute('cy', (joinY + reportPos.y) / 2);
-          }
+          const xH = els.canvas.querySelector('.oc-line-handle-x[data-oc-line="' + reportId + '"][data-oc-line-type="' + type + '"]');
+          if (xH) { xH.setAttribute('cx', routeX); xH.setAttribute('cy', (routeY + reportPos.y) / 2); }
+          const yH = els.canvas.querySelector('.oc-line-handle-y[data-oc-line="' + reportId + '"][data-oc-line-type="' + type + '"]');
+          if (yH) { yH.setAttribute('cx', (managerPos.x + routeX) / 2); yH.setAttribute('cy', routeY); }
         });
       }
 
@@ -848,11 +884,13 @@
         ? {
             id: seed.id, name: seed.name || '', role: seed.role || '', email: seed.email || '',
             description: seed.description || '', photo_url: seed.photo_url || null,
-            manager_id: seed.manager_id || null, dotted_manager_id: seed.dotted_manager_id || null
+            manager_id: seed.manager_id || null, dotted_manager_id: seed.dotted_manager_id || null,
+            team_color: seed.team_color || null, department: seed.department || '', location: seed.location || ''
           }
         : {
             manager_id: seed.manager_id || null, dotted_manager_id: null,
-            name: '', role: '', email: '', description: '', photo_url: null
+            name: '', role: '', email: '', description: '', photo_url: null,
+            team_color: null, department: '', location: ''
           };
       let pendingPhotoFile = null;
 
@@ -898,8 +936,18 @@
             '</select>' +
             '<label class="oc-field-label">Email</label>' +
             '<input class="oc-input" name="email" type="email" value="' + escHtml(data.email) + '" placeholder="name@pepsico.com">' +
+            '<label class="oc-field-label">Department</label>' +
+            '<input class="oc-input" name="department" value="' + escHtml(data.department) + '" placeholder="e.g. China Foods Marketing">' +
+            '<label class="oc-field-label">Location</label>' +
+            '<input class="oc-input" name="location" value="' + escHtml(data.location) + '" placeholder="e.g. Sydney">' +
+            '<label class="oc-field-label">Accent colour <span style="font-weight:400;text-transform:none;">(optional — colours the card top)</span></label>' +
+            '<div class="oc-color-row">' +
+              '<input type="color" data-oc="colorPicker" value="' + escHtml(data.team_color || '#3680CE') + '">' +
+              '<button type="button" class="oc-btn oc-btn-sm" data-oc="clearColor">No colour</button>' +
+              '<span class="oc-color-state" data-oc="colorState">' + (data.team_color ? 'Colour set' : 'No colour') + '</span>' +
+            '</div>' +
             '<label class="oc-field-label">Description</label>' +
-            '<textarea class="oc-textarea" name="description" placeholder="Department, responsibilities, or team notes">' + escHtml(data.description) + '</textarea>' +
+            '<textarea class="oc-textarea" name="description" placeholder="Responsibilities or team notes">' + escHtml(data.description) + '</textarea>' +
             '<div class="oc-error" data-oc="saveError" style="margin-top:12px;"></div>' +
             '<div class="oc-modal-actions">' +
               '<button type="button" class="oc-btn" data-oc-close="cancel">Cancel</button>' +
@@ -933,6 +981,17 @@
       };
       if (removeBtn) removeBtn.onclick = function () { data.photo_url = null; pendingPhotoFile = 'REMOVE'; };
 
+      let colorValue = data.team_color || null;
+      const colorPicker = form.querySelector('[data-oc="colorPicker"]');
+      const clearColorBtn = form.querySelector('[data-oc="clearColor"]');
+      const colorState = form.querySelector('[data-oc="colorState"]');
+      if (colorPicker) {
+        colorPicker.oninput = function () { colorValue = colorPicker.value; colorState.textContent = 'Colour set'; };
+      }
+      if (clearColorBtn) {
+        clearColorBtn.onclick = function () { colorValue = null; colorState.textContent = 'No colour'; };
+      }
+
       form.onsubmit = async function (e) {
         e.preventDefault();
         const submitBtn = form.querySelector('button[type="submit"]');
@@ -944,6 +1003,9 @@
           description: form.description.value.trim(),
           manager_id: form.manager_id.value || null,
           dotted_manager_id: form.dotted_manager_id.value || null,
+          department: form.department.value.trim() || null,
+          location: form.location.value.trim() || null,
+          team_color: colorValue,
           updated_at: new Date().toISOString()
         };
 
