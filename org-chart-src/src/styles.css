@@ -1,0 +1,120 @@
+/* ── Root ── */
+.oc2-root { width: 100%; height: 100%; min-height: 620px; display: flex; flex-direction: column; font-family: 'Poppins', Arial, sans-serif; }
+.oc2-flow-wrap { flex: 1; min-height: 620px; position: relative; border-radius: 14px; overflow: hidden; border: 1px solid rgba(2,53,90,0.1); background: #fff; }
+
+/* ── Toolbar ── */
+.oc2-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; padding: 10px 14px; background: #fff; border: 1px solid rgba(2,53,90,0.1); border-radius: 12px; box-shadow: 0 4px 18px rgba(2,53,90,.06); }
+.oc2-toolbar-sep { width: 1px; height: 22px; background: rgba(2,53,90,0.1); margin: 0 2px; }
+.oc2-toolbar-status { margin-left: auto; font-size: 11px; color: #7a9ab8; white-space: nowrap; }
+.oc2-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 8px; border: 1px solid rgba(2,53,90,0.15); background: #fff; color: #02355A; font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.oc2-btn:hover { border-color: #3680CE; background: #f5f9fd; }
+.oc2-btn-primary { background: #02355A; color: #fff; border-color: #02355A; }
+.oc2-btn-primary:hover { background: #3680CE; border-color: #3680CE; }
+.oc2-btn-active { background: #eaf2fb; border-color: #3680CE; box-shadow: inset 0 0 0 1px #3680CE; color: #02355A; }
+.oc2-btn-danger { color: #b3462c; border-color: #f1d6cc; }
+.oc2-btn-danger:hover { background: #fff0ec; }
+.oc2-btn-sm { padding: 5px 10px; font-size: 10px; }
+.oc2-line-swatch { width: 18px; border-top: 2px solid currentColor; opacity: 0.7; }
+.oc2-line-swatch-dotted { border-top-style: dashed; }
+
+/* ── Node card ── */
+.oc2-card {
+  background: #fff;
+  border: 1.5px solid rgba(2,53,90,0.12);
+  border-top: 3px solid var(--oc2-accent, rgba(2,53,90,0.12));
+  border-radius: 10px;
+  padding: 10px 11px 10px 11px;
+  width: 180px;
+  box-shadow: 0 2px 8px rgba(2,53,90,0.07);
+  cursor: default;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  position: relative;
+  font-family: 'Poppins', Arial, sans-serif;
+}
+.oc2-card:hover { border-color: #3680CE; box-shadow: 0 4px 16px rgba(2,53,90,0.13); }
+
+.oc2-card-body { display: flex; align-items: flex-start; gap: 9px; }
+
+.oc2-avatar {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  object-fit: cover; border: 1.5px solid rgba(2,53,90,0.1);
+  background: #eaf1fb; color: #3680CE;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 12px; letter-spacing: 0.02em;
+  font-family: 'Poppins', Arial, sans-serif;
+}
+
+.oc2-info { flex: 1; min-width: 0; }
+.oc2-name { font-size: 11.5px; font-weight: 600; color: #02355A; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oc2-role { font-size: 9.5px; color: #7a9ab8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oc2-dept { font-size: 9px; font-weight: 500; color: #3680CE; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oc2-loc  { font-size: 8.5px; color: #7a9ab8; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* selected node ring — add to .react-flow__node when selected */
+.oc2-card-selected { border-color: #02355A !important; box-shadow: 0 0 0 3px rgba(2,53,90,0.12), 0 8px 20px rgba(2,53,90,0.14) !important; }
+
+/* action bar shown on selected */
+.oc2-actions { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(2,53,90,0.08); }
+.oc2-action-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 6px;
+  border: 1px solid rgba(2,53,90,0.15); background: #fff; color: #02355A;
+  text-decoration: none; cursor: pointer; font-size: 13px; line-height: 1;
+  transition: all 0.13s;
+}
+.oc2-action-btn:hover { border-color: #3680CE; color: #3680CE; }
+.oc2-action-danger { color: #b3462c; border-color: #f1d6cc; }
+.oc2-action-danger:hover { background: #fdf1ec; }
+
+/* ── Handles ── */
+.oc2-handle {
+  width: 10px !important; height: 10px !important;
+  background: #fff !important; border: 2px solid #3680CE !important;
+  border-radius: 50% !important;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.react-flow__node:hover .oc2-handle,
+.react-flow__node.selected .oc2-handle { opacity: 1; }
+
+/* ── Edge label (delete / toggle buttons) ── */
+.oc2-edge-actions { display: flex; gap: 4px; background: #fff; border: 1px solid rgba(2,53,90,0.15); border-radius: 8px; padding: 4px; box-shadow: 0 4px 14px rgba(2,53,90,0.12); pointer-events: all; }
+.oc2-edge-btn { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 5px; border: none; background: transparent; color: #02355A; cursor: pointer; font-size: 12px; transition: background 0.13s; }
+.oc2-edge-btn:hover { background: #f0f4f8; }
+.oc2-edge-btn-danger:hover { background: #fdf1ec; color: #b3462c; }
+
+/* ── Legend ── */
+.oc2-legend { margin-top: 10px; font-size: 11px; color: #7a9ab8; text-align: center; }
+
+/* ── Toast ── */
+.oc2-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #02355A; color: #fff; padding: 10px 20px; border-radius: 100px; font-size: 12px; font-weight: 500; box-shadow: 0 10px 30px rgba(2,53,90,.3); z-index: 9999; pointer-events: none; font-family: 'Poppins', Arial, sans-serif; white-space: nowrap; }
+
+/* ── Modal ── */
+.oc2-overlay { position: fixed; inset: 0; z-index: 900; background: rgba(2,53,90,0.42); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.oc2-modal { background: #fff; border-radius: 16px; padding: 26px; width: 360px; max-height: 90vh; overflow-y: auto; box-shadow: 0 32px 80px rgba(2,53,90,0.25); font-family: 'Poppins', Arial, sans-serif; }
+.oc2-modal-title { font-size: 15px; font-weight: 700; color: #02355A; margin-bottom: 2px; }
+.oc2-modal-sub { font-size: 11.5px; color: #7a9ab8; margin-bottom: 18px; }
+.oc2-field { margin-top: 13px; }
+.oc2-label { display: block; font-size: 10px; font-weight: 600; color: #7a9ab8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+.oc2-label span { font-weight: 400; text-transform: none; }
+.oc2-input, .oc2-select, .oc2-textarea { width: 100%; box-sizing: border-box; padding: 9px 11px; font-size: 13px; border-radius: 8px; border: 1px solid rgba(2,53,90,0.18); outline: none; font-family: inherit; color: #2c4a62; background: #fff; transition: border-color 0.15s; }
+.oc2-input:focus, .oc2-select:focus, .oc2-textarea:focus { border-color: #3680CE; }
+.oc2-textarea { resize: vertical; min-height: 58px; line-height: 1.45; }
+.oc2-error { font-size: 10.5px; color: #b3462c; margin-top: 6px; min-height: 14px; }
+.oc2-modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+.oc2-photo-row { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.oc2-photo-btns { display: flex; flex-direction: column; gap: 6px; }
+.oc2-file-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; padding: 7px 12px; border-radius: 8px; border: 1px solid rgba(2,53,90,0.15); color: #02355A; background: #fff; cursor: pointer; }
+.oc2-file-btn:hover { border-color: #3680CE; }
+.oc2-color-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.oc2-color-row input[type="color"] { width: 34px; height: 28px; padding: 2px; border: 1px solid rgba(2,53,90,0.15); border-radius: 6px; cursor: pointer; background: none; }
+.oc2-color-note { font-size: 11px; color: #7a9ab8; }
+
+/* ── React Flow overrides ── */
+.react-flow__background { background: #fcfcfc; }
+.react-flow__controls { box-shadow: 0 4px 14px rgba(2,53,90,0.1); border-radius: 8px; border: 1px solid rgba(2,53,90,0.1); }
+.react-flow__controls-button { border: none !important; color: #02355A !important; }
+.react-flow__minimap { border-radius: 8px; border: 1px solid rgba(2,53,90,0.1); box-shadow: 0 4px 14px rgba(2,53,90,0.08); }
+.react-flow__edge-path { transition: stroke 0.15s; }
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-path { stroke: #02355A !important; stroke-width: 2 !important; }
