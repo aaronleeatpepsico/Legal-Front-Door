@@ -349,7 +349,7 @@
         if (isSelected) classes.push('oc-selected');
         if (isDropTarget) classes.push('oc-drop-target');
         if (isDragging) classes.push('oc-dragging');
-        if (isAdmin && !isRoot) classes.push('oc-admin');
+        if (isAdmin) classes.push('oc-admin');
 
         const avatar = n.photo_url
           ? '<img class="oc-avatar" src="' + escHtml(n.photo_url) + '" alt="">'
@@ -365,7 +365,7 @@
           if (isAdmin) {
             pills += '<button class="oc-icon-btn" data-oc-edit="' + n.id + '" title="Edit">\u270E</button>';
             pills += '<button class="oc-icon-btn" data-oc-add="' + n.id + '" title="Add report">+</button>';
-            if (!isRoot) pills += '<button class="oc-icon-btn oc-danger" data-oc-del="' + n.id + '" title="Remove">\u2716</button>';
+            pills += '<button class="oc-icon-btn oc-danger" data-oc-del="' + n.id + '" title="Delete person">\u2716</button>';
           }
           expand = '<div class="oc-card-expand">' +
             (n.description ? '<div class="oc-desc">' + escHtml(n.description) + '</div>' : '') +
@@ -374,8 +374,8 @@
         }
 
         cards += '<div class="' + classes.join(' ') + '" style="left:' + pos.x + 'px;top:' + pos.y + 'px;" ' +
-          'data-oc-card="' + n.id + '" ' + ((isAdmin && !isRoot) ? 'draggable="true"' : '') + '>' +
-          (isAdmin && !isRoot ? '<span class="oc-grip">\u22EE\u22EE</span>' : '') +
+          'data-oc-card="' + n.id + '" ' + (isAdmin ? 'draggable="true"' : '') + '>' +
+          (isAdmin ? '<span class="oc-grip">\u22EE\u22EE</span>' : '') +
           '<div class="oc-card-top">' + avatar +
             '<div style="min-width:0;padding-right:10px;">' +
               '<div class="oc-name" title="' + escHtml(n.name) + '">' + escHtml(n.name) + '</div>' +
@@ -443,14 +443,25 @@
 
     async function deletePerson(node) {
       if (!node) return;
-      if (!node.manager_id) { showToast("Can't delete the top of the chart"); return; }
-      if (!confirm('Remove ' + node.name + '? Their reports will move up to their manager.')) return;
-      const { error: moveErr } = await sb.from(TABLE).update({ manager_id: node.manager_id }).eq('manager_id', node.id);
-      if (moveErr) { showToast('Could not remove: ' + moveErr.message); return; }
+      const hasReports = rows.some(function (r) { return r.manager_id === node.id; });
+      const reportNote = hasReports
+        ? (node.manager_id
+            ? ' Their direct reports will move up to their manager.'
+            : ' Their direct reports will become top-level people.')
+        : '';
+      if (!confirm('Delete ' + node.name + '?' + reportNote)) return;
+
+      // Preserve the rest of the chart before deleting: reports move up one
+      // level, or become top-level when deleting a top-level person.
+      const { error: moveErr } = await sb.from(TABLE)
+        .update({ manager_id: node.manager_id || null, updated_at: new Date().toISOString() })
+        .eq('manager_id', node.id);
+      if (moveErr) { showToast('Could not delete: ' + moveErr.message); return; }
+
       const { error: delErr } = await sb.from(TABLE).delete().eq('id', node.id);
-      if (delErr) { showToast('Could not remove: ' + delErr.message); return; }
+      if (delErr) { showToast('Could not delete: ' + delErr.message); return; }
       selectedId = null;
-      showToast('Removed ' + node.name);
+      showToast('Deleted ' + node.name);
       await loadData();
     }
 
