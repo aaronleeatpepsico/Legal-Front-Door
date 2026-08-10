@@ -638,9 +638,8 @@
 
         if (isAdmin) {
           card.addEventListener('pointerdown', function (e) {
-            if (connectMode || e.button !== 0 || e.target.closest('button,a')) return;
+            if (connectMode || e.button !== 0 || e.target.closest('button,a,.oc-select-box')) return;
             e.preventDefault();
-            if (e.target.closest('[data-oc-select]')) return;
             if (!selectedIds.has(id)) {
               selectedIds.clear();
               selectedIds.add(id);
