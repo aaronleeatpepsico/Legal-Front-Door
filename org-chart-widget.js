@@ -432,6 +432,7 @@
             '<input class="oc-input" name="email" type="email" value="' + escHtml(data.email) + '" placeholder="name@pepsico.com">' +
             '<label class="oc-field-label">Description</label>' +
             '<textarea class="oc-textarea" name="description" placeholder="Department, responsibilities, or team notes">' + escHtml(data.description) + '</textarea>' +
+            '<div class="oc-error" data-oc="saveError" style="margin-top:12px;"></div>' +
             '<div class="oc-modal-actions">' +
               '<button type="button" class="oc-btn" data-oc-close="cancel">Cancel</button>' +
               '<button type="submit" class="oc-btn oc-btn-solid">' + (isEdit ? 'Save changes' : 'Add person') + '</button>' +
@@ -500,7 +501,11 @@
           closeModal();
           await loadData();
         } catch (err) {
-          form.querySelector('[data-oc="photoError"]').textContent = err.message || 'Something went wrong saving this.';
+          const saveError = form.querySelector('[data-oc="saveError"]');
+          const denied = err && (err.code === '42501' || /permission denied/i.test(err.message || ''));
+          saveError.textContent = denied
+            ? 'Your signed-in account is not recognised by the org chart write policy. Run the latest 17_org_chart.sql migration and try again.'
+            : (err.message || 'Something went wrong saving this.');
           submitBtn.disabled = false;
         }
       };
