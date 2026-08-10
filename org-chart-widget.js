@@ -445,8 +445,9 @@
             routeX + ',' + child.y,
             childLeft + ',' + child.y
           ].join(' ');
-          svg += '<polyline points="' + points + '" fill="none" stroke="' + stroke +
-            '" stroke-width="' + lineWidth + '"' + dash + '/>';
+          svg += '<polyline class="oc-line-visible" points="' + points + '" fill="none" stroke="' + stroke +
+            '" stroke-width="' + lineWidth + '"' + dash + ' data-oc-line="' + child.id +
+            '" data-oc-line-type="' + type + '"/>';
           if (isAdmin) {
             svg += '<polyline class="oc-line-hit" points="' + points +
               '" fill="none" stroke="transparent" stroke-width="14" data-oc-line="' +
@@ -526,7 +527,14 @@
             nextX = Math.max(20, moveEvent.clientX - els.canvas.getBoundingClientRect().left);
             els.canvas.querySelectorAll('[data-oc-line="' + reportId + '"][data-oc-line-type="' + type + '"]')
               .forEach(function (part) {
-                if (part.tagName.toLowerCase() === 'circle') part.setAttribute('cx', nextX);
+                if (part.tagName.toLowerCase() === 'circle') {
+                  part.setAttribute('cx', nextX);
+                } else {
+                  const points = part.getAttribute('points').split(' ');
+                  points[2] = nextX + ',' + points[2].split(',')[1];
+                  points[3] = nextX + ',' + points[3].split(',')[1];
+                  part.setAttribute('points', points.join(' '));
+                }
               });
           }
           async function onUp() {
