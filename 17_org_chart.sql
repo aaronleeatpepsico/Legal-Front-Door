@@ -11,15 +11,28 @@ create table if not exists public.org_chart_people (
   description text,
   photo_url text,
   manager_id uuid references public.org_chart_people(id) on delete set null,
+  dotted_manager_id uuid references public.org_chart_people(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint org_chart_person_cannot_manage_self check (manager_id is null or manager_id <> id)
 );
 
+-- Existing installations need the new column because CREATE TABLE IF NOT
+-- EXISTS does not alter an already-created table.
+alter table public.org_chart_people
+  add column if not exists dotted_manager_id uuid
+  references public.org_chart_people(id) on delete set null;
+
 create index if not exists org_chart_people_manager_id_idx
   on public.org_chart_people(manager_id);
+create index if not exists org_chart_people_dotted_manager_id_idx
+  on public.org_chart_people(dotted_manager_id);
 
 alter table public.org_chart_people enable row level security;
+
+-- Raw SQL table creation requires explicit PostgREST role privileges.
+grant select on table public.org_chart_people to anon, authenticated;
+grant insert, update, delete on table public.org_chart_people to authenticated;
 
 -- Resolve admin membership through a SECURITY DEFINER helper. Use the
 -- immutable Supabase user id to read the canonical Auth email instead of
