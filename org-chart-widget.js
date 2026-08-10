@@ -151,7 +151,11 @@
       const descendantCount = directSubtrees.reduce(function (sum, list) { return sum + list.length; }, 0);
       const laneCount = Math.max(1, Math.ceil(descendantCount / MAX_LANE_ROWS));
       const lanes = Array.from({ length: laneCount }, function () { return []; });
-      directSubtrees.sort(function (a, b) { return b.length - a.length; });
+      // Preserve the explicit report order for single-column teams. Larger
+      // teams use size-aware lane balancing, but never cross leadership groups.
+      if (laneCount > 1) {
+        directSubtrees.sort(function (a, b) { return b.length - a.length; });
+      }
       directSubtrees.forEach(function (subtree) {
         let laneIndex = 0;
         for (let i = 1; i < lanes.length; i++) {
@@ -304,7 +308,7 @@
     }
 
     async function loadData() {
-      const { data, error } = await sb.from(TABLE).select('*').order('created_at');
+      const { data, error } = await sb.from(TABLE).select('*').order('sort_order').order('created_at');
       if (error) {
         const setupMissing = error.code === '42P01' || error.code === 'PGRST205';
         els.canvas.innerHTML = '<div class="oc-empty-hint">' +
