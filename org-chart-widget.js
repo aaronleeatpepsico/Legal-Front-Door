@@ -232,8 +232,13 @@
     async function loadData() {
       const { data, error } = await sb.from(TABLE).select('*').order('created_at');
       if (error) {
-        els.canvas.innerHTML = '<div class="oc-empty-hint">Couldn\u2019t load the org chart right now. Try refreshing.</div>';
-        console.error(error);
+        const setupMissing = error.code === '42P01' || error.code === 'PGRST205';
+        els.canvas.innerHTML = '<div class="oc-empty-hint">' +
+          (setupMissing
+            ? 'The org chart database setup hasn\u2019t been completed yet.'
+            : 'Couldn\u2019t load the org chart right now. Try refreshing.') +
+          '</div>';
+        console.error('OrgChart load failed:', error);
         return;
       }
       rows = data || [];
@@ -241,7 +246,16 @@
     }
 
     function render() {
-      if (!rows.length) { els.canvas.innerHTML = '<div class="oc-empty-hint">No one on the chart yet.</div>'; return; }
+      if (!rows.length) {
+        els.canvas.style.width = '100%';
+        els.canvas.style.height = 'auto';
+        els.canvas.innerHTML = '<div class="oc-empty-hint">No one on the chart yet.' +
+          (isAdmin ? '<br><button class="oc-btn oc-btn-solid" data-oc-first style="margin-top:14px;">Add first person</button>' : '') +
+          '</div>';
+        const firstBtn = els.canvas.querySelector('[data-oc-first]');
+        if (firstBtn) firstBtn.onclick = function () { openPersonModal('add', { manager_id: null }); };
+        return;
+      }
       const layout = layoutTree(rows);
       const byId = nodesById();
       const width = Math.max(layout.width, 600), height = layout.height;
