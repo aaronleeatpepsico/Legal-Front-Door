@@ -12,6 +12,7 @@ create table if not exists public.org_chart_people (
   photo_url text,
   manager_id uuid references public.org_chart_people(id) on delete set null,
   dotted_manager_id uuid references public.org_chart_people(id) on delete set null,
+  sort_order integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint org_chart_person_cannot_manage_self check (manager_id is null or manager_id <> id)
@@ -22,6 +23,8 @@ create table if not exists public.org_chart_people (
 alter table public.org_chart_people
   add column if not exists dotted_manager_id uuid
   references public.org_chart_people(id) on delete set null;
+alter table public.org_chart_people
+  add column if not exists sort_order integer not null default 0;
 
 create index if not exists org_chart_people_manager_id_idx
   on public.org_chart_people(manager_id);
@@ -197,3 +200,63 @@ select
   end
 from seed
 on conflict (id) do nothing;
+
+-- Reconcile the supplied reference chart once the seeded people exist.
+-- Explicit manager ids keep adjacent bottom-row reports in their respective
+-- manager columns (for example Mu Fei Li under Zhao Wen and Dora Liang under
+-- Steve Liang) instead of allowing database insertion order to mix them.
+with structure(name, manager_name, sort_order) as (
+  values
+    ('Daphne Dai', null, 0),
+    ('Claire Zhang', 'Daphne Dai', 1),
+    ('Zhao Wen', 'Daphne Dai', 10),
+    ('Steve Liang', 'Daphne Dai', 20),
+    ('Leila Golchin', 'Daphne Dai', 30),
+    ('Lili Dent', 'Daphne Dai', 40),
+    ('Namit Chawla', 'Daphne Dai', 50),
+
+    ('Jing Jie Xiao', 'Zhao Wen', 11),
+    ('Julia Feng', 'Zhao Wen', 12),
+    ('Donna Ye', 'Zhao Wen', 13),
+    ('Mu Fei Li', 'Zhao Wen', 14),
+
+    ('Stanley Chen', 'Steve Liang', 21),
+    ('Amanda Gao', 'Steve Liang', 22),
+    ('Sophia Kong', 'Steve Liang', 23),
+    ('Dora Liang', 'Steve Liang', 24),
+
+    ('Dannica Alston', 'Leila Golchin', 31),
+    ('Aaron Lee', 'Leila Golchin', 32),
+    ('Holly Leaton', 'Leila Golchin', 33),
+    ('Danielle Walsh', 'Leila Golchin', 34),
+    ('Theeravorn (Tune) Prayoonhong', 'Danielle Walsh', 35),
+
+    ('Prithasha Kumar', 'Lili Dent', 41),
+    ('Rosie Thomas', 'Prithasha Kumar', 42),
+    ('Mark Coorey', 'Lili Dent', 43),
+    ('Julie Mehrdawi', 'Lili Dent', 44),
+
+    ('Punjaree (Aum) Siwaprasitkul', 'Namit Chawla', 51),
+    ('La Quang Vuong', 'Namit Chawla', 52),
+    ('Viet Nguyen', 'La Quang Vuong', 53),
+    ('An Le Van', 'La Quang Vuong', 54),
+    ('Ngan Nguyen', 'La Quang Vuong', 55),
+    ('Apisist Sirintitong', 'Namit Chawla', 56),
+    ('Oranee Kanoksophit', 'Apisist Sirintitong', 57),
+    ('Chainipath Loywattanokul', 'Oranee Kanoksophit', 58),
+    ('Sonita Sakulerthasuk', 'Namit Chawla', 59),
+    ('Yesi Natasya', 'Sonita Sakulerthasuk', 60),
+    ('Sarah Simarmata', 'Sonita Sakulerthasuk', 61),
+    ('Aina Nur', 'Sonita Sakulerthasuk', 62),
+    ('Ganesha Bratasena', 'Sonita Sakulerthasuk', 63)
+)
+update public.org_chart_people person
+set
+  manager_id = case
+    when structure.manager_name is null then null
+    else md5('apac-org-chart:' || structure.manager_name)::uuid
+  end,
+  sort_order = structure.sort_order,
+  updated_at = now()
+from structure
+where person.id = md5('apac-org-chart:' || structure.name)::uuid;
