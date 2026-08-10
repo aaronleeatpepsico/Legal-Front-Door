@@ -148,3 +148,26 @@
 .oc-card.oc-connect-source { border-color:var(--pep-blue);box-shadow:0 0 0 4px rgba(42,113,189,.18),0 8px 20px rgba(2,53,90,.14);z-index:20; }
 .oc-card.oc-connect-source::after { content:'MANAGER';position:absolute;top:-19px;left:50%;transform:translateX(-50%);padding:2px 6px;border-radius:4px;background:var(--pep-blue);color:#fff;font:700 8px var(--font-body);letter-spacing:.06em; }
 @media (max-width:760px) { .oc-toolbar{align-items:flex-start;flex-direction:column}.oc-tool-status{white-space:normal} }
+
+.oc-tool-danger { color:#a83d2b;border-color:#e9b9ae;background:#fff8f6; }
+.oc-tool-danger:hover { color:#8d2e1f;border-color:#d98f7f;background:#fff0ec; }
+.oc-card.oc-multi-selected {
+  border-color:var(--pep-blue);
+  box-shadow:0 0 0 3px rgba(42,113,189,.18),0 8px 20px rgba(2,53,90,.12);
+  z-index:12;
+}
+.oc-select-box {
+  position:absolute;top:5px;left:5px;width:18px;height:18px;z-index:4;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.oc-select-box input { position:absolute;opacity:0;pointer-events:none; }
+.oc-select-box span {
+  width:13px;height:13px;border:1.5px solid #8ca9c1;border-radius:3px;
+  background:#fff;box-shadow:0 1px 2px rgba(2,53,90,.12);
+}
+.oc-select-box input:checked + span { background:var(--pep-blue);border-color:var(--pep-blue); }
+.oc-select-box input:checked + span::after {
+  content:'';display:block;width:6px;height:3px;margin:3px 0 0 2px;
+  border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg);
+}
+.oc-card.oc-admin .oc-card-top { padding-left:14px; }
