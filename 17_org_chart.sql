@@ -21,24 +21,21 @@ create index if not exists org_chart_people_manager_id_idx
 
 alter table public.org_chart_people enable row level security;
 
--- Resolve admin membership through a SECURITY DEFINER helper. This avoids
--- admins-table RLS recursion and supports common Azure identity claim names.
+-- Resolve admin membership through a SECURITY DEFINER helper. Use the
+-- immutable Supabase user id to read the canonical Auth email instead of
+-- relying on provider-specific JWT claim names.
 create or replace function public.is_org_chart_admin()
 returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, auth
 as $org_chart_admin$
   select exists (
     select 1
     from public.admins a
-    where lower(a.email) = lower(coalesce(
-      auth.jwt() ->> 'email',
-      auth.jwt() ->> 'preferred_username',
-      auth.jwt() ->> 'upn',
-      ''
-    ))
+    join auth.users u on u.id = auth.uid()
+    where lower(trim(a.email)) = lower(trim(u.email))
   );
 $org_chart_admin$;
 
