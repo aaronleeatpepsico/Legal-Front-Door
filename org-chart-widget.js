@@ -274,6 +274,8 @@
     let rows = [];
     let isAdmin = false;
     let selectedId = null;
+    const selectedIds = new Set();
+    let lastSelectionId = null;
     let dragId = null;
     let toastTimer = null;
     let connectMode = null;
@@ -338,9 +340,10 @@
       }
       els.toolbar.hidden = false;
       const active = connectMode;
-      const prompt = connectFromId
-        ? 'Now choose the report'
-        : (active ? 'Choose the manager' : 'Arrange the chart');
+      const selectedCount = selectedIds.size;
+      const prompt = selectedCount
+        ? selectedCount + ' selected — drag any selected card to move the group'
+        : (connectFromId ? 'Now choose the report' : (active ? 'Choose the manager' : 'Arrange the chart'));
       els.toolbar.innerHTML =
         '<div class="oc-toolbar-group">' +
           '<button class="oc-tool oc-tool-primary" data-tool="add">+ Add card</button>' +
@@ -348,6 +351,8 @@
           '<button class="oc-tool' + (active === 'dotted_manager_id' ? ' oc-tool-active' : '') + '" data-tool="dotted_manager_id"><span class="oc-line-swatch oc-line-dotted"></span> Dotted line</button>' +
           '<button class="oc-tool' + (active === 'remove' ? ' oc-tool-active oc-tool-remove' : ' oc-tool-remove') + '" data-tool="remove">Remove line</button>' +
           '<button class="oc-tool" data-tool="arrange">Auto arrange</button>' +
+          (selectedCount ? '<button class="oc-tool oc-tool-danger" data-tool="delete-selected">Delete selected (' + selectedCount + ')</button>' +
+            '<button class="oc-tool" data-tool="clear-selected">Clear selection</button>' : '') +
           (active ? '<button class="oc-tool oc-tool-cancel" data-tool="cancel">Cancel</button>' : '') +
         '</div>' +
         '<div class="oc-tool-status">' + escHtml(prompt) + '</div>';
@@ -357,12 +362,16 @@
           const tool = button.getAttribute('data-tool');
           if (tool === 'add') return openPersonModal('add', { manager_id: null });
           if (tool === 'arrange') return autoArrange();
+          if (tool === 'delete-selected') return deleteSelectedPeople();
+          if (tool === 'clear-selected') { selectedIds.clear(); lastSelectionId = null; render(); return; }
           if (tool === 'cancel') {
             connectMode = null; connectFromId = null; renderToolbar(); render(); return;
           }
           connectMode = tool;
           connectFromId = null;
           selectedId = null;
+          selectedIds.clear();
+          lastSelectionId = null;
           renderToolbar();
           render();
           showToast('Choose the manager card');
@@ -447,14 +456,14 @@
           ].join(' ');
           svg += '<polyline class="oc-line-visible" points="' + points + '" fill="none" stroke="' + stroke +
             '" stroke-width="' + lineWidth + '"' + dash + ' data-oc-line="' + child.id +
-            '" data-oc-line-type="' + type + '"/>';
+            '" data-oc-line-manager="' + edge.parentId + '" data-oc-line-type="' + type + '"/>';
           if (isAdmin) {
             svg += '<polyline class="oc-line-hit" points="' + points +
               '" fill="none" stroke="transparent" stroke-width="14" data-oc-line="' +
-              child.id + '" data-oc-line-type="' + type + '"/>';
+              child.id + '" data-oc-line-manager="' + edge.parentId + '" data-oc-line-type="' + type + '"/>';
             svg += '<circle class="oc-line-handle" cx="' + routeX + '" cy="' +
               ((joinY + child.y) / 2) + '" r="5" data-oc-line="' + child.id +
-              '" data-oc-line-type="' + type + '"/>';
+              '" data-oc-line-manager="' + edge.parentId + '" data-oc-line-type="' + type + '"/>';
           }
         });
       }
@@ -468,10 +477,12 @@
         const pos = layout.positions[n.id];
         if (!pos) return;
         const isSelected = selectedId === n.id;
+        const isMultiSelected = selectedIds.has(n.id);
         const isConnecting = connectFromId === n.id;
         const isDragging = dragId === n.id;
         const classes = ['oc-card'];
         if (isSelected) classes.push('oc-selected');
+        if (isMultiSelected) classes.push('oc-multi-selected');
         if (isConnecting) classes.push('oc-connect-source');
         if (isDragging) classes.push('oc-moving');
         if (isAdmin) classes.push('oc-admin');
@@ -497,7 +508,7 @@
             '<div class="oc-actions">' + pills + '</div></div>';
         }
         cards += '<div class="' + classes.join(' ') + '" style="left:' + pos.x + 'px;top:' + pos.y + 'px;" data-oc-card="' + n.id + '">' +
-          (isAdmin ? '<span class="oc-grip" title="Drag to move">⠿</span>' : '') +
+          (isAdmin ? '<label class="oc-select-box" title="Select person"><input type="checkbox" data-oc-select="' + n.id + '"' + (isMultiSelected ? ' checked' : '') + ' aria-label="Select ' + escHtml(n.name) + '"><span></span></label><span class="oc-grip" title="Drag to move">⠿</span>' : '') +
           '<div class="oc-card-top">' + avatar +
             '<div style="min-width:0;padding-right:10px;"><div class="oc-name" title="' + escHtml(n.name) + '">' + escHtml(n.name) + '</div>' +
             '<div class="oc-role" title="' + escHtml(n.role || '') + '">' + escHtml(n.role || '') + '</div></div>' +
@@ -558,21 +569,88 @@
     }
 
     function wireCardEvents(byId, positions) {
+      function refreshConnectorGeometry() {
+        els.canvas.querySelectorAll('.oc-line-visible, .oc-line-hit').forEach(function (line) {
+          const reportId = line.getAttribute('data-oc-line');
+          const managerId = line.getAttribute('data-oc-line-manager');
+          const type = line.getAttribute('data-oc-line-type');
+          const reportPos = positions[reportId], managerPos = positions[managerId];
+          if (!reportPos || !managerPos) return;
+          const row = byId[reportId];
+          const field = type === 'dotted' ? 'dotted_route_x' : 'direct_route_x';
+          const childLeft = reportPos.x - NODE_W / 2;
+          const allBelow = reportPos.y > managerPos.y;
+          const managerAnchorY = managerPos.y + (allBelow ? NODE_H / 2 : -NODE_H / 2);
+          const joinY = managerAnchorY + (allBelow ? 9 : -9);
+          const savedRouteX = Number(row && row[field]);
+          const routeX = Number.isFinite(savedRouteX)
+            ? savedRouteX
+            : Math.min(childLeft, managerPos.x) - (type === 'dotted' ? 16 : 9);
+          line.setAttribute('points', [
+            managerPos.x + ',' + managerAnchorY,
+            managerPos.x + ',' + joinY,
+            routeX + ',' + joinY,
+            routeX + ',' + reportPos.y,
+            childLeft + ',' + reportPos.y
+          ].join(' '));
+          const handle = els.canvas.querySelector('.oc-line-handle[data-oc-line="' + reportId +
+            '"][data-oc-line-type="' + type + '"]');
+          if (handle) {
+            handle.setAttribute('cx', routeX);
+            handle.setAttribute('cy', (joinY + reportPos.y) / 2);
+          }
+        });
+      }
+
       els.canvas.querySelectorAll('[data-oc-card]').forEach(function (card) {
         const id = card.getAttribute('data-oc-card');
         card.addEventListener('click', function (e) {
           if (suppressClickId === id) { suppressClickId = null; return; }
           if (e.target.closest('[data-oc-stop]') || e.target.closest('[data-oc-edit],[data-oc-add],[data-oc-del]')) return;
           if (connectMode && isAdmin) return chooseConnectionCard(id);
-          selectedId = (selectedId === id) ? null : id;
+          if (isAdmin && e.shiftKey) {
+            const ids = rows.map(function (row) { return row.id; });
+            const from = lastSelectionId ? ids.indexOf(lastSelectionId) : -1;
+            const to = ids.indexOf(id);
+            if (from >= 0 && to >= 0) {
+              ids.slice(Math.min(from, to), Math.max(from, to) + 1).forEach(function (personId) {
+                selectedIds.add(personId);
+              });
+            } else selectedIds.add(id);
+            lastSelectionId = id;
+            selectedId = null;
+          } else {
+            selectedId = (selectedId === id) ? null : id;
+          }
           render();
         });
+
+        const selectBox = card.querySelector('[data-oc-select]');
+        if (selectBox) {
+          selectBox.onclick = function (e) {
+            e.stopPropagation();
+            if (selectBox.checked) selectedIds.add(id); else selectedIds.delete(id);
+            lastSelectionId = id;
+            selectedId = null;
+            render();
+          };
+        }
 
         if (isAdmin) {
           card.addEventListener('pointerdown', function (e) {
             if (connectMode || e.button !== 0 || e.target.closest('button,a')) return;
             e.preventDefault();
-            const origin = positions[id];
+            if (e.target.closest('[data-oc-select]')) return;
+            if (!selectedIds.has(id)) {
+              selectedIds.clear();
+              selectedIds.add(id);
+              lastSelectionId = id;
+            }
+            const movingIds = Array.from(selectedIds);
+            const origins = {};
+            movingIds.forEach(function (movingId) {
+              origins[movingId] = { x: positions[movingId].x, y: positions[movingId].y };
+            });
             const startX = e.clientX, startY = e.clientY;
             let moved = false;
             dragId = id;
@@ -581,8 +659,18 @@
             function onMove(moveEvent) {
               const dx = moveEvent.clientX - startX, dy = moveEvent.clientY - startY;
               if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
-              card.style.left = Math.max(NODE_W / 2 + 20, origin.x + dx) + 'px';
-              card.style.top = Math.max(NODE_H / 2 + 20, origin.y + dy) + 'px';
+              movingIds.forEach(function (movingId) {
+                const nextX = Math.max(NODE_W / 2 + 20, origins[movingId].x + dx);
+                const nextY = Math.max(NODE_H / 2 + 20, origins[movingId].y + dy);
+                positions[movingId] = { x: nextX, y: nextY };
+                const movingCard = els.canvas.querySelector('[data-oc-card="' + movingId + '"]');
+                if (movingCard) {
+                  movingCard.style.left = nextX + 'px';
+                  movingCard.style.top = nextY + 'px';
+                  movingCard.classList.add('oc-moving');
+                }
+              });
+              refreshConnectorGeometry();
             }
             async function onUp(upEvent) {
               card.removeEventListener('pointermove', onMove);
@@ -591,14 +679,17 @@
               dragId = null;
               if (!moved) { card.classList.remove('oc-moving'); return; }
               suppressClickId = id;
-              const x = parseFloat(card.style.left), y = parseFloat(card.style.top);
-              const node = byId[id];
-              node.position_x = x; node.position_y = y;
-              const { error } = await sb.from(TABLE).update({
-                position_x: x, position_y: y, updated_at: new Date().toISOString()
-              }).eq('id', id);
-              if (error) showToast('Could not save card position: ' + error.message);
-              else showToast('Card position saved');
+              const results = await Promise.all(movingIds.map(function (movingId) {
+                const pos = positions[movingId];
+                byId[movingId].position_x = pos.x;
+                byId[movingId].position_y = pos.y;
+                return sb.from(TABLE).update({
+                  position_x: pos.x, position_y: pos.y, updated_at: new Date().toISOString()
+                }).eq('id', movingId);
+              }));
+              const failed = results.find(function (result) { return result.error; });
+              if (failed) showToast('Could not save card positions: ' + failed.error.message);
+              else showToast(movingIds.length + (movingIds.length === 1 ? ' card moved' : ' cards moved'));
               render();
             }
             card.addEventListener('pointermove', onMove);
@@ -685,6 +776,46 @@
       const failed = results.find(function (result) { return result.error; });
       if (failed) { showToast('Could not auto arrange: ' + failed.error.message); return; }
       showToast('Chart auto arranged');
+      await loadData();
+    }
+
+    async function deleteSelectedPeople() {
+      const ids = Array.from(selectedIds);
+      if (!ids.length) return;
+      const names = rows.filter(function (row) { return selectedIds.has(row.id); })
+        .map(function (row) { return row.name; });
+      if (!confirm('Delete ' + ids.length + ' selected ' + (ids.length === 1 ? 'person' : 'people') +
+        '? Unselected reports will be preserved.\n\n' + names.join(', '))) return;
+
+      const byId = nodesById();
+      function nearestRemainingManager(managerId) {
+        const visited = new Set();
+        while (managerId && selectedIds.has(managerId) && !visited.has(managerId)) {
+          visited.add(managerId);
+          managerId = byId[managerId] ? byId[managerId].manager_id : null;
+        }
+        return managerId || null;
+      }
+
+      const affected = rows.filter(function (row) {
+        return !selectedIds.has(row.id) &&
+          (selectedIds.has(row.manager_id) || selectedIds.has(row.dotted_manager_id));
+      });
+      const moves = await Promise.all(affected.map(function (row) {
+        const payload = { updated_at: new Date().toISOString() };
+        if (selectedIds.has(row.manager_id)) payload.manager_id = nearestRemainingManager(row.manager_id);
+        if (selectedIds.has(row.dotted_manager_id)) payload.dotted_manager_id = null;
+        return sb.from(TABLE).update(payload).eq('id', row.id);
+      }));
+      const moveFailure = moves.find(function (result) { return result.error; });
+      if (moveFailure) { showToast('Could not preserve reports: ' + moveFailure.error.message); return; }
+
+      const result = await sb.from(TABLE).delete().in('id', ids);
+      if (result.error) { showToast('Could not delete selected people: ' + result.error.message); return; }
+      selectedIds.clear();
+      lastSelectionId = null;
+      selectedId = null;
+      showToast('Deleted ' + ids.length + (ids.length === 1 ? ' person' : ' people'));
       await loadData();
     }
 
