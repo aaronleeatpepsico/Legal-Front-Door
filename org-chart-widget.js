@@ -69,7 +69,7 @@
   const BUCKET = 'org-photos';
 
   // --- layout geometry -------------------------------------------------
-  const NODE_W = 148, NODE_H = 52, H_GAP = 16, V_GAP = 20, SIDE_PAD = 24, TOP_PAD = 24, BOTTOM_PAD = 28;
+  const NODE_W = 148, NODE_H = 52, H_GAP = 16, V_GAP = 14, SIDE_PAD = 24, TOP_PAD = 24, BOTTOM_PAD = 24;
 
   function escHtml(s) {
     if (s === null || s === undefined) return '';
