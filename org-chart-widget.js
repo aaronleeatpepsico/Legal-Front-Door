@@ -108,12 +108,12 @@
   function layoutTree(rows) {
     const byId = {};
     rows.forEach(function (r) { byId[r.id] = Object.assign({}, r, { children: [] }); });
-    let root = null;
+    const roots = [];
     rows.forEach(function (r) {
       if (r.manager_id && byId[r.manager_id]) byId[r.manager_id].children.push(byId[r.id]);
-      else if (!r.manager_id) root = byId[r.id];
+      else roots.push(byId[r.id]); // top-level people and records whose manager was removed
     });
-    if (!root) return { byId: byId, positions: {}, edges: [], width: 0, height: 0 };
+    if (!roots.length) return { byId: byId, positions: {}, edges: [], width: 0, height: 0 };
 
     let maxDepth = 0;
     (function measure(node, depth) {
@@ -123,7 +123,8 @@
       node.children.forEach(function (c, i) { if (i > 0) w += H_GAP; w += measure(c, depth + 1); });
       node._w = Math.max(NODE_W, w);
       return node._w;
-    })(root, 0);
+    }
+    roots.forEach(function (root) { measure(root, 0); });
 
     (function place(node, leftEdge, depth) {
       const y = TOP_PAD + depth * (NODE_H + V_GAP);
@@ -133,7 +134,12 @@
       node.children.forEach(function (c) { place(c, cursor, depth + 1); cursor += c._w + H_GAP; });
       node.x = (node.children[0].x + node.children[node.children.length - 1].x) / 2;
       node.y = y;
-    })(root, SIDE_PAD, 0);
+    }
+    let rootCursor = SIDE_PAD;
+    roots.forEach(function (root) {
+      place(root, rootCursor, 0);
+      rootCursor += root._w + H_GAP;
+    });
 
     const positions = {}, edges = [];
     (function collect(node) {
@@ -146,11 +152,15 @@
         });
       }
       node.children.forEach(collect);
-    })(root);
+    }
+    roots.forEach(collect);
 
+    const forestWidth = roots.reduce(function (sum, root, i) {
+      return sum + root._w + (i > 0 ? H_GAP : 0);
+    }, 0);
     return {
       byId: byId, positions: positions, edges: edges,
-      width: root._w + SIDE_PAD * 2,
+      width: forestWidth + SIDE_PAD * 2,
       height: TOP_PAD + maxDepth * (NODE_H + V_GAP) + NODE_H + BOTTOM_PAD
     };
   }
