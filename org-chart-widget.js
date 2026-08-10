@@ -50,12 +50,18 @@
        // ctrl.refresh() on subsequent opens to pick up admin/session changes
      </script>
 --------------------------------------------------------------------------- */
-(function (global) {
+(function () {
   "use strict";
 
-  const sb = global.sb;
-  if (!sb) {
-    console.error('OrgChart: expected window.sb (the page\'s Supabase client) to already exist.');
+  // NOTE: intentionally NOT `window.sb` — the page defines its client as
+  // `const sb = window.supabase.createClient(...)` inside a classic
+  // <script> tag. Top-level const/let in a classic script does not
+  // attach to `window`, but it IS visible by bare name to other classic
+  // scripts loaded afterward in the same document (they share the
+  // script-global lexical scope) — which is how this file, loaded via
+  // <script src>, can see `sb` here without ever assigning to it.
+  if (typeof sb === 'undefined') {
+    console.error('OrgChart: expected the page\'s `sb` Supabase client to already be declared before this script runs.');
     return;
   }
 
@@ -482,11 +488,11 @@
     };
   }
 
-  global.OrgChart = {
+  window.OrgChart = {
     mountPage: function (containerEl) {
       const c = createController(containerEl);
       c.init();
       return c;
     }
   };
-})(window);
+})();
