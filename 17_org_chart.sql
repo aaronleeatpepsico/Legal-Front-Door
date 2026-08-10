@@ -134,3 +134,64 @@ create policy "org photos admins delete"
       where lower(a.email) = lower(auth.jwt() ->> 'email')
     )
   );
+
+
+-- Initial APAC / Greater China team chart.
+-- IDs are deterministic, so rerunning this file will not duplicate people.
+-- Existing seeded rows are left untouched so later admin edits are preserved.
+with seed(name, role, manager_name) as (
+  values
+    ('Daphne Dai', 'APAC / China GC — Shanghai', null),
+    ('Claire Zhang', 'Executive Assistant — Shanghai', 'Daphne Dai'),
+    ('Zhao Wen', 'Sr Legal Director, China Foods Marketing & Commercial — Shanghai', 'Daphne Dai'),
+    ('Steve Liang', 'Legal Director, China Region Directors / B&C Director', 'Daphne Dai'),
+    ('Leila Golchin', 'Senior Legal Director, GC APAC PO1 & Asia Foods — Sydney', 'Daphne Dai'),
+    ('Lili Dent', 'Sr. Legal Director, GC Australia / New Zealand PO1 — Sydney', 'Daphne Dai'),
+    ('Namit Chawla', 'Sr. Legal Director, GC Asia PO1 — Bangkok', 'Daphne Dai'),
+
+    ('Jing Jie Xiao', 'Legal Counsel, China — Shanghai', 'Zhao Wen'),
+    ('Julia Feng', 'Legal Associate Counsel — Shanghai', 'Zhao Wen'),
+    ('Donna Ye', 'Governance Sr Analyst — Shanghai', 'Zhao Wen'),
+    ('Mu Fei Li', 'Legal Counsel, China — Shanghai', 'Zhao Wen'),
+
+    ('Stanley Chen', 'Legal Sr. Counsel, China — Shanghai', 'Steve Liang'),
+    ('Amanda Gao', 'Legal Analyst, China — Shanghai', 'Steve Liang'),
+    ('Sophia Kong', 'Legal Counsel, China — Shanghai', 'Steve Liang'),
+    ('Dora Liang', 'Legal Specialist — Shanghai', 'Steve Liang'),
+
+    ('Dannica Alston', 'Sr. Legal Counsel — Sydney', 'Leila Golchin'),
+    ('Aaron Lee', 'Paralegal, APAC / ANZ — Sydney', 'Leila Golchin'),
+    ('Holly Leaton', 'Legal Counsel, APAC, Asia Foods / ANZ — Sydney', 'Leila Golchin'),
+    ('Danielle Walsh', 'Sr. Legal Counsel — Sydney', 'Leila Golchin'),
+    ('Theeravorn (Tune) Prayoonhong', 'Legal Counsel, Asia Foods — Bangkok', 'Danielle Walsh'),
+
+    ('Prithasha Kumar', 'Legal Sr. Counsel — Sydney', 'Lili Dent'),
+    ('Rosie Thomas', 'Counsel — Sydney', 'Prithasha Kumar'),
+    ('Mark Coorey', 'Legal Counsel — Sydney', 'Lili Dent'),
+    ('Julie Mehrdawi', 'Legal Counsel — Sydney', 'Lili Dent'),
+
+    ('Punjaree (Aum) Siwaprasitkul', 'Executive Assistant / Legal Coordinator — Bangkok', 'Namit Chawla'),
+    ('La Quang Vuong', 'Legal Sr. Counsel, Vietnam Foods — Vietnam', 'Namit Chawla'),
+    ('Viet Nguyen', 'Legal Attorney — Vietnam', 'La Quang Vuong'),
+    ('An Le Van', 'Legal Associate Counsel — Vietnam', 'La Quang Vuong'),
+    ('Ngan Nguyen', 'Legal Associate Analyst — Vietnam', 'La Quang Vuong'),
+    ('Apisist Sirintitong', 'Legal Attorney — Bangkok', 'Namit Chawla'),
+    ('Oranee Kanoksophit', 'Legal Sr. Attorney — Bangkok', 'Apisist Sirintitong'),
+    ('Chainipath Loywattanokul', 'Legal Coordinator — Bangkok', 'Oranee Kanoksophit'),
+    ('Sonita Sakulerthasuk', 'Legal Director, Thailand / Indonesia PO1', 'Namit Chawla'),
+    ('Yesi Natasya', 'Legal Associate Counsel — Indonesia', 'Sonita Sakulerthasuk'),
+    ('Sarah Simarmata', 'Legal Coordinator — Indonesia', 'Sonita Sakulerthasuk'),
+    ('Aina Nur', 'Legal Intern — Indonesia', 'Sonita Sakulerthasuk'),
+    ('Ganesha Bratasena', 'Legal Manager — Indonesia', 'Sonita Sakulerthasuk')
+)
+insert into public.org_chart_people (id, name, role, manager_id)
+select
+  md5('apac-org-chart:' || name)::uuid,
+  name,
+  role,
+  case
+    when manager_name is null then null
+    else md5('apac-org-chart:' || manager_name)::uuid
+  end
+from seed
+on conflict (id) do nothing;
