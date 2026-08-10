@@ -25,16 +25,16 @@
 .oc-btn-sm { padding: 5px 12px; font-size: 10px; }
 
 .oc-canvas-scroll {
-  overflow-x: auto; background: #fff; border: 1px solid var(--border);
+  overflow: hidden; background: #fff; border: 1px solid var(--border);
   border-radius: var(--radius-lg); box-shadow: 0 8px 30px rgba(2,53,90,0.06);
 }
 .oc-canvas { position: relative; margin: 0 auto; }
 .oc-canvas svg { position: absolute; inset: 0; pointer-events: none; }
 
 .oc-card {
-  position: absolute; width: 178px;
+  position: absolute; width: 148px;
   background: var(--off-white); border: 1.5px solid var(--border);
-  border-radius: var(--radius-md); padding: 10px 12px;
+  border-radius: 9px; padding: 8px 9px;
   transform: translate(-50%, -50%);
   transition: border-color var(--t), box-shadow var(--t), opacity var(--t);
   box-shadow: 0 1px 3px rgba(2,53,90,0.06);
@@ -49,18 +49,18 @@
 
 .oc-card-top { display: flex; align-items: center; gap: 9px; }
 .oc-avatar {
-  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
   object-fit: cover; border: 1px solid var(--border);
   background: #eaf1fb; color: var(--pep-blue);
   display: flex; align-items: center; justify-content: center;
   font-family: var(--font-head); font-weight: 600; font-size: 11px;
 }
 .oc-name {
-  font-family: var(--font-head); font-weight: 600; font-size: 12.5px; color: var(--pep-navy);
+  font-family: var(--font-head); font-weight: 600; font-size: 11.5px; color: var(--pep-navy);
   line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .oc-role {
-  font-size: 10.5px; font-weight: 300; color: var(--text-muted); margin-top: 1px;
+  font-size: 9.5px; font-weight: 400; color: var(--text-muted); margin-top: 1px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .oc-card-expand { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
