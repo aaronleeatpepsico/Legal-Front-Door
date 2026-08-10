@@ -346,6 +346,7 @@
           '<button class="oc-tool oc-tool-primary" data-tool="add">+ Add card</button>' +
           '<button class="oc-tool' + (active === 'manager_id' ? ' oc-tool-active' : '') + '" data-tool="manager_id"><span class="oc-line-swatch"></span> Solid line</button>' +
           '<button class="oc-tool' + (active === 'dotted_manager_id' ? ' oc-tool-active' : '') + '" data-tool="dotted_manager_id"><span class="oc-line-swatch oc-line-dotted"></span> Dotted line</button>' +
+          '<button class="oc-tool' + (active === 'remove' ? ' oc-tool-active oc-tool-remove' : ' oc-tool-remove') + '" data-tool="remove">Remove line</button>' +
           '<button class="oc-tool" data-tool="arrange">Auto arrange</button>' +
           (active ? '<button class="oc-tool oc-tool-cancel" data-tool="cancel">Cancel</button>' : '') +
         '</div>' +
@@ -570,6 +571,26 @@
         return;
       }
       const report = byId[id], manager = byId[connectFromId];
+      if (connectMode === 'remove') {
+        const removesSolid = report.manager_id === connectFromId;
+        const removesDotted = report.dotted_manager_id === connectFromId;
+        if (!removesSolid && !removesDotted) {
+          showToast('Those cards do not have a line between them');
+          return;
+        }
+        const payload = { updated_at: new Date().toISOString() };
+        if (removesSolid) payload.manager_id = null;
+        if (removesDotted) payload.dotted_manager_id = null;
+        const { error } = await sb.from(TABLE).update(payload).eq('id', id);
+        if (error) { showToast('Could not remove line: ' + error.message); return; }
+        const lineLabel = removesSolid && removesDotted
+          ? 'Solid and dotted lines removed'
+          : (removesSolid ? 'Solid line removed' : 'Dotted line removed');
+        showToast(lineLabel + ': ' + manager.name + ' → ' + report.name);
+        connectMode = null; connectFromId = null;
+        await loadData();
+        return;
+      }
       if (connectMode === 'manager_id' && getDescendantIds(rows, id).has(connectFromId)) {
         showToast('That solid line would create a reporting loop');
         return;
