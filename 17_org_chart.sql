@@ -158,7 +158,7 @@ with seed(name, role, manager_name) as (
     ('Steve Liang', 'Legal Director, China Region Directors / B&C Director', 'Daphne Dai'),
     ('Leila Golchin', 'Senior Legal Director, GC APAC PO1 & Asia Foods — Sydney', 'Daphne Dai'),
     ('Lili Dent', 'Sr. Legal Director, GC Australia / New Zealand PO1 — Sydney', 'Daphne Dai'),
-    ('Namit Chawla', 'Sr. Legal Director, GC Asia PO1 — Bangkok', 'Daphne Dai'),
+    ('Namit Chawla', 'Sr. Legal Director, GC Asia PO1 — Bangkok', null),
 
     ('Jing Jie Xiao', 'Legal Counsel, China — Shanghai', 'Zhao Wen'),
     ('Julia Feng', 'Legal Associate Counsel — Shanghai', 'Zhao Wen'),
@@ -193,7 +193,7 @@ with seed(name, role, manager_name) as (
     ('Yesi Natasya', 'Legal Associate Counsel — Indonesia', 'Sonita Sakulerthasuk'),
     ('Sarah Simarmata', 'Legal Coordinator — Indonesia', 'Sonita Sakulerthasuk'),
     ('Aina Nur', 'Legal Intern — Indonesia', 'Sonita Sakulerthasuk'),
-    ('Ganesha Bratasena', 'Legal Manager — Indonesia', 'Sonita Sakulerthasuk')
+    ('Ganesha Bratasena', 'Legal Manager — Indonesia', 'Namit Chawla')
 )
 insert into public.org_chart_people (id, name, role, manager_id)
 select
@@ -208,53 +208,53 @@ from seed
 on conflict (id) do nothing;
 
 -- Reconcile the supplied reference chart once the seeded people exist.
--- Explicit manager ids keep adjacent bottom-row reports in their respective
--- manager columns (for example Mu Fei Li under Zhao Wen and Dora Liang under
--- Steve Liang) instead of allowing database insertion order to mix them.
-with structure(name, manager_name, sort_order) as (
+-- Solid connectors become manager_id; dotted connectors become
+-- dotted_manager_id. Initial canvas coordinates reproduce the supplied chart,
+-- while COALESCE preserves positions that an admin has already moved.
+with structure(name, manager_name, dotted_manager_name, sort_order, position_x, position_y) as (
   values
-    ('Daphne Dai', null, 0),
-    ('Claire Zhang', 'Daphne Dai', 1),
-    ('Zhao Wen', 'Daphne Dai', 10),
-    ('Steve Liang', 'Daphne Dai', 20),
-    ('Leila Golchin', 'Daphne Dai', 30),
-    ('Lili Dent', 'Daphne Dai', 40),
-    ('Namit Chawla', 'Daphne Dai', 50),
+    ('Daphne Dai', null, null, 0, 540, 90),
+    ('Claire Zhang', 'Daphne Dai', null, 1, 400, 150),
+    ('Zhao Wen', 'Daphne Dai', null, 10, 25, 225),
+    ('Steve Liang', 'Daphne Dai', null, 20, 225, 225),
+    ('Leila Golchin', 'Daphne Dai', null, 30, 405, 225),
+    ('Lili Dent', 'Daphne Dai', null, 40, 640, 225),
+    ('Namit Chawla', null, 'Daphne Dai', 50, 1025, 225),
 
-    ('Jing Jie Xiao', 'Zhao Wen', 11),
-    ('Julia Feng', 'Zhao Wen', 12),
-    ('Donna Ye', 'Zhao Wen', 13),
-    ('Mu Fei Li', 'Zhao Wen', 14),
+    ('Jing Jie Xiao', 'Zhao Wen', null, 11, 70, 315),
+    ('Julia Feng', 'Zhao Wen', null, 12, 70, 385),
+    ('Donna Ye', 'Zhao Wen', null, 13, 70, 455),
+    ('Mu Fei Li', 'Zhao Wen', null, 14, 70, 525),
 
-    ('Stanley Chen', 'Steve Liang', 21),
-    ('Amanda Gao', 'Steve Liang', 22),
-    ('Sophia Kong', 'Steve Liang', 23),
-    ('Dora Liang', 'Steve Liang', 24),
+    ('Stanley Chen', 'Steve Liang', null, 21, 260, 315),
+    ('Amanda Gao', 'Steve Liang', null, 22, 260, 385),
+    ('Sophia Kong', 'Steve Liang', 'Leila Golchin', 23, 260, 455),
+    ('Dora Liang', 'Steve Liang', null, 24, 195, 525),
 
-    ('Dannica Alston', 'Leila Golchin', 31),
-    ('Aaron Lee', 'Leila Golchin', 32),
-    ('Holly Leaton', 'Leila Golchin', 33),
-    ('Danielle Walsh', 'Leila Golchin', 34),
-    ('Theeravorn (Tune) Prayoonhong', 'Danielle Walsh', 35),
+    ('Dannica Alston', 'Leila Golchin', null, 31, 440, 315),
+    ('Aaron Lee', 'Leila Golchin', null, 32, 470, 385),
+    ('Holly Leaton', 'Leila Golchin', 'Lili Dent', 33, 440, 455),
+    ('Danielle Walsh', 'Leila Golchin', null, 34, 440, 525),
+    ('Theeravorn (Tune) Prayoonhong', 'Danielle Walsh', null, 35, 485, 595),
 
-    ('Prithasha Kumar', 'Lili Dent', 41),
-    ('Rosie Thomas', 'Prithasha Kumar', 42),
-    ('Mark Coorey', 'Lili Dent', 43),
-    ('Julie Mehrdawi', 'Lili Dent', 44),
+    ('Prithasha Kumar', 'Lili Dent', null, 41, 670, 305),
+    ('Rosie Thomas', 'Prithasha Kumar', null, 42, 700, 375),
+    ('Mark Coorey', 'Lili Dent', null, 43, 670, 445),
+    ('Julie Mehrdawi', 'Lili Dent', null, 44, 670, 515),
 
-    ('Punjaree (Aum) Siwaprasitkul', 'Namit Chawla', 51),
-    ('La Quang Vuong', 'Namit Chawla', 52),
-    ('Viet Nguyen', 'La Quang Vuong', 53),
-    ('An Le Van', 'La Quang Vuong', 54),
-    ('Ngan Nguyen', 'La Quang Vuong', 55),
-    ('Apisist Sirintitong', 'Namit Chawla', 56),
-    ('Oranee Kanoksophit', 'Apisist Sirintitong', 57),
-    ('Chainipath Loywattanokul', 'Oranee Kanoksophit', 58),
-    ('Sonita Sakulerthasuk', 'Namit Chawla', 59),
-    ('Yesi Natasya', 'Sonita Sakulerthasuk', 60),
-    ('Sarah Simarmata', 'Sonita Sakulerthasuk', 61),
-    ('Aina Nur', 'Sonita Sakulerthasuk', 62),
-    ('Ganesha Bratasena', 'Sonita Sakulerthasuk', 63)
+    ('Punjaree (Aum) Siwaprasitkul', 'Namit Chawla', null, 51, 895, 295),
+    ('La Quang Vuong', 'Namit Chawla', null, 52, 945, 385),
+    ('Viet Nguyen', 'La Quang Vuong', null, 53, 825, 475),
+    ('An Le Van', 'La Quang Vuong', null, 54, 825, 545),
+    ('Ngan Nguyen', 'La Quang Vuong', null, 55, 825, 615),
+    ('Apisist Sirintitong', 'Namit Chawla', null, 56, 1035, 455),
+    ('Oranee Kanoksophit', 'Apisist Sirintitong', null, 57, 1035, 525),
+    ('Chainipath Loywattanokul', 'Oranee Kanoksophit', null, 58, 1060, 595),
+    ('Sonita Sakulerthasuk', 'Namit Chawla', null, 59, 1130, 335),
+    ('Yesi Natasya', 'Sonita Sakulerthasuk', null, 60, 1200, 405),
+    ('Sarah Simarmata', 'Sonita Sakulerthasuk', null, 61, 1200, 475),
+    ('Aina Nur', 'Sonita Sakulerthasuk', null, 62, 1200, 545),
+    ('Ganesha Bratasena', 'Namit Chawla', null, 63, 1200, 615)
 )
 update public.org_chart_people person
 set
@@ -262,7 +262,13 @@ set
     when structure.manager_name is null then null
     else md5('apac-org-chart:' || structure.manager_name)::uuid
   end,
+  dotted_manager_id = case
+    when structure.dotted_manager_name is null then null
+    else md5('apac-org-chart:' || structure.dotted_manager_name)::uuid
+  end,
   sort_order = structure.sort_order,
+  position_x = coalesce(person.position_x, structure.position_x),
+  position_y = coalesce(person.position_y, structure.position_y),
   updated_at = now()
 from structure
 where person.id = md5('apac-org-chart:' || structure.name)::uuid;
