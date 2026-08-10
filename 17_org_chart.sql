@@ -15,6 +15,8 @@ create table if not exists public.org_chart_people (
   sort_order integer not null default 0,
   position_x double precision,
   position_y double precision,
+  direct_route_x double precision,
+  dotted_route_x double precision,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint org_chart_person_cannot_manage_self check (manager_id is null or manager_id <> id)
@@ -31,6 +33,10 @@ alter table public.org_chart_people
   add column if not exists position_x double precision;
 alter table public.org_chart_people
   add column if not exists position_y double precision;
+alter table public.org_chart_people
+  add column if not exists direct_route_x double precision;
+alter table public.org_chart_people
+  add column if not exists dotted_route_x double precision;
 
 create index if not exists org_chart_people_manager_id_idx
   on public.org_chart_people(manager_id);
