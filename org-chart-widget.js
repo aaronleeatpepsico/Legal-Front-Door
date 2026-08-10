@@ -338,41 +338,50 @@
 
       let svg = '<svg width="' + width + '" height="' + height + '">';
 
-      // Dotted-line (matrix) relationships use the same fan-out visual
-      // grammar as direct reports, but remain visually secondary.
-      (layout.dottedEdges || []).forEach(function (edge) {
-        const parentBottom = edge.parent.y + NODE_H / 2;
-        const childTops = edge.children.map(function (c) { return c.y - NODE_H / 2; });
-        const nearestChildTop = Math.min.apply(null, childTops);
-        const busY = parentBottom + Math.max(10, (nearestChildTop - parentBottom) / 2);
-        const xs = edge.children.map(function (c) { return c.x; }).concat([edge.parent.x]);
-        const minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
-        svg += '<line x1="' + edge.parent.x + '" y1="' + parentBottom + '" x2="' + edge.parent.x + '" y2="' + busY + '" stroke="#7a9ab8" stroke-width="1.3" stroke-dasharray="4 4"/>';
-        if (edge.children.length > 1 || minX !== maxX) {
-          svg += '<line x1="' + minX + '" y1="' + busY + '" x2="' + maxX + '" y2="' + busY + '" stroke="#7a9ab8" stroke-width="1.3" stroke-dasharray="4 4"/>';
-        }
-        edge.children.forEach(function (c) {
-          svg += '<line x1="' + c.x + '" y1="' + busY + '" x2="' + c.x + '" y2="' + (c.y - NODE_H / 2) + '" stroke="#7a9ab8" stroke-width="1.3" stroke-dasharray="4 4"/>';
-        });
-      });
+      function drawLeftTrunk(edge, dotted) {
+        if (!edge.children.length) return;
+        const childLefts = edge.children.map(function (c) { return c.x - NODE_W / 2; });
+        const childYs = edge.children.map(function (c) { return c.y; });
+        // Matrix trunks sit slightly farther left so a dotted and solid
+        // relationship remain distinguishable when they share cards.
+        const trunkX = Math.min.apply(null, childLefts) - (dotted ? 16 : 9);
+        const allBelow = Math.min.apply(null, childYs) > edge.parent.y;
+        const managerAnchorY = edge.parent.y + (allBelow ? NODE_H / 2 : -NODE_H / 2);
+        const trunkJoinY = managerAnchorY + (allBelow ? 9 : -9);
+        const minY = Math.min.apply(null, childYs.concat([trunkJoinY]));
+        const maxY = Math.max.apply(null, childYs.concat([trunkJoinY]));
+        const stroke = dotted ? '#7a9ab8' : '#9fb5c8';
+        const width = dotted ? 1.25 : 1.4;
+        const dash = dotted ? ' stroke-dasharray="4 4"' : '';
 
-      layout.edges.forEach(function (edge) {
-        const busY = edge.parent.y + NODE_H / 2 + V_GAP / 2;
-        const xs = edge.children.map(function (c) { return c.x; }).concat([edge.parent.x]);
-        const minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
-        const active = dragId && edge.children.some(function (c) { return c.id === dragId; });
-        const stroke = active ? 'var(--pep-blue)' : '#c7d3de';
-        const sw = active ? 2 : 1.4;
-        svg += '<line x1="' + edge.parent.x + '" y1="' + (edge.parent.y + NODE_H / 2) + '" x2="' + edge.parent.x + '" y2="' + busY + '" stroke="' + stroke + '" stroke-width="' + sw + '"/>';
-        if (edge.children.length > 1) {
-          svg += '<line x1="' + minX + '" y1="' + busY + '" x2="' + maxX + '" y2="' + busY + '" stroke="' + stroke + '" stroke-width="' + sw + '"/>';
-        }
-        edge.children.forEach(function (c) {
-          const cs = c.id === dragId ? 'var(--pep-blue)' : '#c7d3de';
-          const csw = c.id === dragId ? 2 : 1.4;
-          svg += '<line x1="' + c.x + '" y1="' + busY + '" x2="' + c.x + '" y2="' + (c.y - NODE_H / 2) + '" stroke="' + cs + '" stroke-width="' + csw + '"/>';
+        // Manager to the shared trunk.
+        svg += '<line x1="' + edge.parent.x + '" y1="' + managerAnchorY +
+          '" x2="' + edge.parent.x + '" y2="' + trunkJoinY +
+          '" stroke="' + stroke + '" stroke-width="' + width + '"' + dash + '/>';
+        svg += '<line x1="' + edge.parent.x + '" y1="' + trunkJoinY +
+          '" x2="' + trunkX + '" y2="' + trunkJoinY +
+          '" stroke="' + stroke + '" stroke-width="' + width + '"' + dash + '/>';
+
+        // One vertical trunk shared by every report to this manager.
+        svg += '<line x1="' + trunkX + '" y1="' + minY +
+          '" x2="' + trunkX + '" y2="' + maxY +
+          '" stroke="' + stroke + '" stroke-width="' + width + '"' + dash + '/>';
+
+        // Each report connects from the middle of its left card edge.
+        edge.children.forEach(function (child) {
+          const active = !dotted && child.id === dragId;
+          const childStroke = active ? 'var(--pep-blue)' : stroke;
+          const childWidth = active ? 2 : width;
+          svg += '<line x1="' + trunkX + '" y1="' + child.y +
+            '" x2="' + (child.x - NODE_W / 2) + '" y2="' + child.y +
+            '" stroke="' + childStroke + '" stroke-width="' + childWidth + '"' + dash + '/>';
         });
-      });
+      }
+
+      // Draw matrix relationships first so solid direct-management trunks
+      // remain the dominant visual layer.
+      (layout.dottedEdges || []).forEach(function (edge) { drawLeftTrunk(edge, true); });
+      layout.edges.forEach(function (edge) { drawLeftTrunk(edge, false); });
       svg += '</svg>';
 
       let cards = '';
