@@ -69,7 +69,7 @@
   const BUCKET = 'org-photos';
 
   // --- layout geometry -------------------------------------------------
-  const NODE_W = 178, NODE_H = 68, H_GAP = 22, V_GAP = 54, SIDE_PAD = 32, TOP_PAD = 32, BOTTOM_PAD = 40;
+  const NODE_W = 148, NODE_H = 52, H_GAP = 16, V_GAP = 20, SIDE_PAD = 24, TOP_PAD = 24, BOTTOM_PAD = 28;
 
   function escHtml(s) {
     if (s === null || s === undefined) return '';
@@ -104,64 +104,117 @@
     });
   }
 
-  // --- tree layout: bottom-up subtree widths, top-down positions -------
+  // --- compact executive-chart layout ----------------------------------
+  // Packs each top-level leader's organisation into one or more vertical
+  // lanes. This mirrors a conventional corporate org chart and avoids a
+  // leaf-per-column canvas that becomes several screens wide.
   function layoutTree(rows) {
     const byId = {};
     rows.forEach(function (r) { byId[r.id] = Object.assign({}, r, { children: [] }); });
     const roots = [];
     rows.forEach(function (r) {
       if (r.manager_id && byId[r.manager_id]) byId[r.manager_id].children.push(byId[r.id]);
-      else roots.push(byId[r.id]); // top-level people and records whose manager was removed
+      else roots.push(byId[r.id]);
     });
     if (!roots.length) return { byId: byId, positions: {}, edges: [], width: 0, height: 0 };
 
-    let maxDepth = 0;
-    function measure(node, depth) {
-      maxDepth = Math.max(maxDepth, depth);
-      if (!node.children.length) { node._w = NODE_W; return node._w; }
-      let w = 0;
-      node.children.forEach(function (c, i) { if (i > 0) w += H_GAP; w += measure(c, depth + 1); });
-      node._w = Math.max(NODE_W, w);
-      return node._w;
-    }
-    roots.forEach(function (root) { measure(root, 0); });
+    const positions = {}, edges = [];
+    const GROUP_GAP = 24;
+    const LANE_GAP = 12;
+    const ROW_STEP = NODE_H + V_GAP;
+    const MAX_LANE_ROWS = 6;
+    const ROOT_Y = TOP_PAD + NODE_H / 2;
+    const BRANCH_Y = ROOT_Y + 140;
 
-    function place(node, leftEdge, depth) {
-      const y = TOP_PAD + depth * (NODE_H + V_GAP);
-      if (!node.children.length) { node.x = leftEdge + node._w / 2; node.y = y; return; }
-      const childrenWidth = node.children.reduce(function (s, c, i) { return s + c._w + (i > 0 ? H_GAP : 0); }, 0);
-      let cursor = leftEdge + (node._w - childrenWidth) / 2;
-      node.children.forEach(function (c) { place(c, cursor, depth + 1); cursor += c._w + H_GAP; });
-      node.x = (node.children[0].x + node.children[node.children.length - 1].x) / 2;
-      node.y = y;
+    function flatten(node, out) {
+      out.push(node);
+      node.children.forEach(function (child) { flatten(child, out); });
+      return out;
     }
-    let rootCursor = SIDE_PAD;
-    roots.forEach(function (root) {
-      place(root, rootCursor, 0);
-      rootCursor += root._w + H_GAP;
+
+    // The supplied chart has one executive root. Multiple disconnected roots
+    // are still rendered as peer branches rather than silently disappearing.
+    const executive = roots.length === 1 ? roots[0] : null;
+    const topChildren = executive ? executive.children.slice() : roots.slice();
+    const assistants = executive
+      ? topChildren.filter(function (n) { return /executive assistant/i.test(n.role || ''); })
+      : [];
+    const branches = executive
+      ? topChildren.filter(function (n) { return assistants.indexOf(n) === -1; })
+      : topChildren;
+
+    const groups = branches.map(function (branch) {
+      const directSubtrees = branch.children.map(function (child) { return flatten(child, []); });
+      const descendantCount = directSubtrees.reduce(function (sum, list) { return sum + list.length; }, 0);
+      const laneCount = Math.max(1, Math.ceil(descendantCount / MAX_LANE_ROWS));
+      const lanes = Array.from({ length: laneCount }, function () { return []; });
+      directSubtrees.sort(function (a, b) { return b.length - a.length; });
+      directSubtrees.forEach(function (subtree) {
+        let laneIndex = 0;
+        for (let i = 1; i < lanes.length; i++) {
+          if (lanes[i].length < lanes[laneIndex].length) laneIndex = i;
+        }
+        Array.prototype.push.apply(lanes[laneIndex], subtree);
+      });
+      return {
+        branch: branch,
+        lanes: lanes,
+        width: laneCount * NODE_W + (laneCount - 1) * LANE_GAP
+      };
     });
 
-    const positions = {}, edges = [];
-    function collect(node) {
-      positions[node.id] = { x: node.x, y: node.y };
-      if (node.children.length) {
+    const groupsWidth = groups.reduce(function (sum, group, i) {
+      return sum + group.width + (i > 0 ? GROUP_GAP : 0);
+    }, 0);
+    const width = Math.max(600, groupsWidth + SIDE_PAD * 2);
+    let cursor = (width - groupsWidth) / 2;
+    let maxY = BRANCH_Y;
+
+    groups.forEach(function (group) {
+      const centerX = cursor + group.width / 2;
+      positions[group.branch.id] = { x: centerX, y: BRANCH_Y };
+      group.lanes.forEach(function (lane, laneIndex) {
+        const laneX = cursor + laneIndex * (NODE_W + LANE_GAP) + NODE_W / 2;
+        lane.forEach(function (node, rowIndex) {
+          const y = BRANCH_Y + (rowIndex + 1) * ROW_STEP;
+          positions[node.id] = { x: laneX, y: y };
+          maxY = Math.max(maxY, y);
+        });
+      });
+      cursor += group.width + GROUP_GAP;
+    });
+
+    if (executive) {
+      positions[executive.id] = { x: width / 2, y: ROOT_Y };
+      assistants.forEach(function (assistant, i) {
+        const offset = (i - (assistants.length - 1) / 2) * (NODE_W + LANE_GAP);
+        positions[assistant.id] = { x: width / 2 + offset, y: ROOT_Y + 72 };
+        maxY = Math.max(maxY, ROOT_Y + 72);
+      });
+    }
+
+    rows.forEach(function (row) {
+      const parent = byId[row.id];
+      const parentPos = positions[row.id];
+      if (!parent || !parentPos) return;
+      const visibleChildren = parent.children.filter(function (child) { return !!positions[child.id]; });
+      if (visibleChildren.length) {
         edges.push({
-          parentId: node.id,
-          parent: { x: node.x, y: node.y },
-          children: node.children.map(function (c) { return { id: c.id, x: c.x, y: c.y }; })
+          parentId: parent.id,
+          parent: parentPos,
+          children: visibleChildren.map(function (child) {
+            return { id: child.id, x: positions[child.id].x, y: positions[child.id].y };
+          })
         });
       }
-      node.children.forEach(collect);
-    }
-    roots.forEach(collect);
+    });
 
-    const forestWidth = roots.reduce(function (sum, root, i) {
-      return sum + root._w + (i > 0 ? H_GAP : 0);
-    }, 0);
     return {
-      byId: byId, positions: positions, edges: edges,
-      width: forestWidth + SIDE_PAD * 2,
-      height: TOP_PAD + maxDepth * (NODE_H + V_GAP) + NODE_H + BOTTOM_PAD
+      byId: byId,
+      positions: positions,
+      edges: edges,
+      width: width,
+      height: maxY + NODE_H / 2 + BOTTOM_PAD
     };
   }
 
