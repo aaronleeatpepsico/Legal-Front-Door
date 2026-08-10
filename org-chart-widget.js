@@ -241,6 +241,24 @@
     };
   }
 
+  function relationshipEdges(rows, positions, field) {
+    const grouped = {};
+    rows.forEach(function (row) {
+      const managerId = row[field];
+      if (!managerId || !positions[row.id] || !positions[managerId]) return;
+      (grouped[managerId] = grouped[managerId] || []).push(row);
+    });
+    return Object.keys(grouped).map(function (managerId) {
+      return {
+        parentId: managerId,
+        parent: positions[managerId],
+        children: grouped[managerId].map(function (child) {
+          return { id: child.id, x: positions[child.id].x, y: positions[child.id].y };
+        })
+      };
+    });
+  }
+
   function getDescendantIds(rows, id) {
     const out = new Set();
     (function walk(pid) {
@@ -257,11 +275,14 @@
     let isAdmin = false;
     let selectedId = null;
     let dragId = null;
-    let dropTargetId = null;
     let toastTimer = null;
+    let connectMode = null;
+    let connectFromId = null;
+    let suppressClickId = null;
 
     containerEl.innerHTML =
       '<div class="oc-wrap">' +
+        '<div class="oc-toolbar" data-oc="toolbar" hidden></div>' +
         '<div class="oc-canvas-scroll"><div class="oc-canvas" data-oc="canvas"></div></div>' +
         '<div class="oc-legend" data-oc="legend"></div>' +
         '<div data-oc="modals"></div>' +
@@ -269,6 +290,7 @@
       '</div>';
 
     const els = {
+      toolbar: containerEl.querySelector('[data-oc="toolbar"]'),
       canvas: containerEl.querySelector('[data-oc="canvas"]'),
       legend: containerEl.querySelector('[data-oc="legend"]'),
       modals: containerEl.querySelector('[data-oc="modals"]'),
@@ -303,8 +325,48 @@
         isAdmin = editingAllowed && !!adminRow;
       }
       els.legend.textContent = (isAdmin
-        ? 'Admin: click a person to edit, add or delete. Drag a card to change its direct manager. '
+        ? 'Drag cards anywhere. Moving a card never changes its manager. Use the line tools to change reporting relationships. '
         : '') + 'Solid lines show direct management; dotted lines show matrix management.';
+      renderToolbar();
+    }
+
+    function renderToolbar() {
+      if (!isAdmin) {
+        els.toolbar.hidden = true;
+        els.toolbar.innerHTML = '';
+        return;
+      }
+      els.toolbar.hidden = false;
+      const active = connectMode;
+      const prompt = connectFromId
+        ? 'Now choose the report'
+        : (active ? 'Choose the manager' : 'Arrange the chart');
+      els.toolbar.innerHTML =
+        '<div class="oc-toolbar-group">' +
+          '<button class="oc-tool oc-tool-primary" data-tool="add">+ Add card</button>' +
+          '<button class="oc-tool' + (active === 'manager_id' ? ' oc-tool-active' : '') + '" data-tool="manager_id"><span class="oc-line-swatch"></span> Solid line</button>' +
+          '<button class="oc-tool' + (active === 'dotted_manager_id' ? ' oc-tool-active' : '') + '" data-tool="dotted_manager_id"><span class="oc-line-swatch oc-line-dotted"></span> Dotted line</button>' +
+          '<button class="oc-tool" data-tool="arrange">Auto arrange</button>' +
+          (active ? '<button class="oc-tool oc-tool-cancel" data-tool="cancel">Cancel</button>' : '') +
+        '</div>' +
+        '<div class="oc-tool-status">' + escHtml(prompt) + '</div>';
+
+      els.toolbar.querySelectorAll('[data-tool]').forEach(function (button) {
+        button.onclick = function () {
+          const tool = button.getAttribute('data-tool');
+          if (tool === 'add') return openPersonModal('add', { manager_id: null });
+          if (tool === 'arrange') return autoArrange();
+          if (tool === 'cancel') {
+            connectMode = null; connectFromId = null; renderToolbar(); render(); return;
+          }
+          connectMode = tool;
+          connectFromId = null;
+          selectedId = null;
+          renderToolbar();
+          render();
+          showToast('Choose the manager card');
+        };
+      });
     }
 
     async function loadData() {
@@ -324,9 +386,10 @@
     }
 
     function render() {
+      renderToolbar();
       if (!rows.length) {
         els.canvas.style.width = '100%';
-        els.canvas.style.height = 'auto';
+        els.canvas.style.height = '620px';
         els.canvas.innerHTML = '<div class="oc-empty-hint">No one on the chart yet.' +
           (isAdmin ? '<br><button class="oc-btn oc-btn-solid" data-oc-first style="margin-top:14px;">Add first person</button>' : '') +
           '</div>';
@@ -334,9 +397,25 @@
         if (firstBtn) firstBtn.onclick = function () { openPersonModal('add', { manager_id: null }); };
         return;
       }
+
       const layout = layoutTree(rows);
       const byId = nodesById();
-      const width = Math.max(layout.width, 600), height = layout.height;
+      rows.forEach(function (row) {
+        const hasSavedPosition = row.position_x !== null && row.position_x !== undefined &&
+          row.position_y !== null && row.position_y !== undefined;
+        const x = Number(row.position_x), y = Number(row.position_y);
+        if (hasSavedPosition && Number.isFinite(x) && Number.isFinite(y)) layout.positions[row.id] = { x: x, y: y };
+      });
+      layout.edges = relationshipEdges(rows, layout.positions, 'manager_id');
+      layout.dottedEdges = relationshipEdges(rows, layout.positions, 'dotted_manager_id');
+
+      let maxX = 600, maxY = 620;
+      Object.keys(layout.positions).forEach(function (id) {
+        maxX = Math.max(maxX, layout.positions[id].x + NODE_W / 2 + 70);
+        maxY = Math.max(maxY, layout.positions[id].y + NODE_H / 2 + 70);
+      });
+      const width = Math.max(layout.width, maxX, 900);
+      const height = Math.max(layout.height, maxY, 620);
       els.canvas.style.width = width + 'px';
       els.canvas.style.height = height + 'px';
 
@@ -346,44 +425,31 @@
         if (!edge.children.length) return;
         const childLefts = edge.children.map(function (c) { return c.x - NODE_W / 2; });
         const childYs = edge.children.map(function (c) { return c.y; });
-        // Matrix trunks sit slightly farther left so a dotted and solid
-        // relationship remain distinguishable when they share cards.
         const trunkX = Math.min.apply(null, childLefts) - (dotted ? 16 : 9);
         const allBelow = Math.min.apply(null, childYs) > edge.parent.y;
         const managerAnchorY = edge.parent.y + (allBelow ? NODE_H / 2 : -NODE_H / 2);
         const trunkJoinY = managerAnchorY + (allBelow ? 9 : -9);
         const minY = Math.min.apply(null, childYs.concat([trunkJoinY]));
         const maxY = Math.max.apply(null, childYs.concat([trunkJoinY]));
-        const stroke = dotted ? '#7a9ab8' : '#9fb5c8';
-        const width = dotted ? 1.25 : 1.4;
-        const dash = dotted ? ' stroke-dasharray="4 4"' : '';
-
-        // Manager to the shared trunk.
+        const stroke = dotted ? '#6f8fab' : '#8ca9c1';
+        const lineWidth = dotted ? 1.5 : 1.7;
+        const dash = dotted ? ' stroke-dasharray="5 4"' : '';
         svg += '<line x1="' + edge.parent.x + '" y1="' + managerAnchorY +
           '" x2="' + edge.parent.x + '" y2="' + trunkJoinY +
-          '" stroke="' + stroke + '" stroke-width="' + width + '"' + dash + '/>';
+          '" stroke="' + stroke + '" stroke-width="' + lineWidth + '"' + dash + '/>';
         svg += '<line x1="' + edge.parent.x + '" y1="' + trunkJoinY +
           '" x2="' + trunkX + '" y2="' + trunkJoinY +
-          '" stroke="' + stroke + '" stroke-width="' + width + '"' + dash + '/>';
-
-        // One vertical trunk shared by every report to this manager.
+          '" stroke="' + stroke + '" stroke-width="' + lineWidth + '"' + dash + '/>';
         svg += '<line x1="' + trunkX + '" y1="' + minY +
           '" x2="' + trunkX + '" y2="' + maxY +
-          '" stroke="' + stroke + '" stroke-width="' + width + '"' + dash + '/>';
-
-        // Each report connects from the middle of its left card edge.
+          '" stroke="' + stroke + '" stroke-width="' + lineWidth + '"' + dash + '/>';
         edge.children.forEach(function (child) {
-          const active = !dotted && child.id === dragId;
-          const childStroke = active ? 'var(--pep-blue)' : stroke;
-          const childWidth = active ? 2 : width;
           svg += '<line x1="' + trunkX + '" y1="' + child.y +
             '" x2="' + (child.x - NODE_W / 2) + '" y2="' + child.y +
-            '" stroke="' + childStroke + '" stroke-width="' + childWidth + '"' + dash + '/>';
+            '" stroke="' + stroke + '" stroke-width="' + lineWidth + '"' + dash + '/>';
         });
       }
 
-      // Draw matrix relationships first so solid direct-management trunks
-      // remain the dominant visual layer.
       (layout.dottedEdges || []).forEach(function (edge) { drawLeftTrunk(edge, true); });
       layout.edges.forEach(function (edge) { drawLeftTrunk(edge, false); });
       svg += '</svg>';
@@ -392,73 +458,95 @@
       rows.forEach(function (n) {
         const pos = layout.positions[n.id];
         if (!pos) return;
-        const isRoot = !n.manager_id;
         const isSelected = selectedId === n.id;
-        const isDropTarget = dropTargetId === n.id;
+        const isConnecting = connectFromId === n.id;
         const isDragging = dragId === n.id;
         const classes = ['oc-card'];
         if (isSelected) classes.push('oc-selected');
-        if (isDropTarget) classes.push('oc-drop-target');
-        if (isDragging) classes.push('oc-dragging');
+        if (isConnecting) classes.push('oc-connect-source');
+        if (isDragging) classes.push('oc-moving');
         if (isAdmin) classes.push('oc-admin');
+        if (connectMode) classes.push('oc-connectable');
 
         const avatar = n.photo_url
           ? '<img class="oc-avatar" src="' + escHtml(n.photo_url) + '" alt="">'
           : '<div class="oc-avatar">' + escHtml(initials(n.name)) + '</div>';
-
         let expand = '';
-        if (isSelected) {
+        if (isSelected && !connectMode) {
           let pills = '';
           if (n.email) {
-            pills += '<a class="oc-icon-btn" href="mailto:' + escHtml(n.email) + '" title="Email" data-oc-stop="1">\u2709</a>';
-            pills += '<a class="oc-icon-btn" href="https://teams.microsoft.com/l/chat/0/0?users=' + escHtml(n.email) + '" target="_blank" rel="noopener" title="Teams" data-oc-stop="1">\uD83D\uDCAC</a>';
+            pills += '<a class="oc-icon-btn" href="mailto:' + escHtml(n.email) + '" title="Email" data-oc-stop="1">✉</a>';
+            pills += '<a class="oc-icon-btn" href="https://teams.microsoft.com/l/chat/0/0?users=' + escHtml(n.email) + '" target="_blank" rel="noopener" title="Teams" data-oc-stop="1">💬</a>';
           }
           if (isAdmin) {
-            pills += '<button class="oc-icon-btn" data-oc-edit="' + n.id + '" title="Edit">\u270E</button>';
+            pills += '<button class="oc-icon-btn" data-oc-edit="' + n.id + '" title="Edit">✎</button>';
             pills += '<button class="oc-icon-btn" data-oc-add="' + n.id + '" title="Add report">+</button>';
-            pills += '<button class="oc-icon-btn oc-danger" data-oc-del="' + n.id + '" title="Delete person">\u2716</button>';
+            pills += '<button class="oc-icon-btn oc-danger" data-oc-del="' + n.id + '" title="Delete person">✖</button>';
           }
           expand = '<div class="oc-card-expand">' +
             (n.description ? '<div class="oc-desc">' + escHtml(n.description) + '</div>' : '') +
-            '<div class="oc-actions">' + pills + '</div>' +
-          '</div>';
+            '<div class="oc-actions">' + pills + '</div></div>';
         }
-
-        cards += '<div class="' + classes.join(' ') + '" style="left:' + pos.x + 'px;top:' + pos.y + 'px;" ' +
-          'data-oc-card="' + n.id + '" ' + (isAdmin ? 'draggable="true"' : '') + '>' +
-          (isAdmin ? '<span class="oc-grip">\u22EE\u22EE</span>' : '') +
+        cards += '<div class="' + classes.join(' ') + '" style="left:' + pos.x + 'px;top:' + pos.y + 'px;" data-oc-card="' + n.id + '">' +
+          (isAdmin ? '<span class="oc-grip" title="Drag to move">⠿</span>' : '') +
           '<div class="oc-card-top">' + avatar +
-            '<div style="min-width:0;padding-right:10px;">' +
-              '<div class="oc-name" title="' + escHtml(n.name) + '">' + escHtml(n.name) + '</div>' +
-              '<div class="oc-role" title="' + escHtml(n.role || '') + '">' + escHtml(n.role || '') + '</div>' +
-            '</div>' +
-          '</div>' + expand +
-        '</div>';
+            '<div style="min-width:0;padding-right:10px;"><div class="oc-name" title="' + escHtml(n.name) + '">' + escHtml(n.name) + '</div>' +
+            '<div class="oc-role" title="' + escHtml(n.role || '') + '">' + escHtml(n.role || '') + '</div></div>' +
+          '</div>' + expand + '</div>';
       });
-
       els.canvas.innerHTML = svg + cards;
-      wireCardEvents(byId);
+      wireCardEvents(byId, layout.positions);
     }
 
-    function wireCardEvents(byId) {
+    function wireCardEvents(byId, positions) {
       els.canvas.querySelectorAll('[data-oc-card]').forEach(function (card) {
         const id = card.getAttribute('data-oc-card');
-
         card.addEventListener('click', function (e) {
+          if (suppressClickId === id) { suppressClickId = null; return; }
           if (e.target.closest('[data-oc-stop]') || e.target.closest('[data-oc-edit],[data-oc-add],[data-oc-del]')) return;
+          if (connectMode && isAdmin) return chooseConnectionCard(id);
           selectedId = (selectedId === id) ? null : id;
           render();
         });
 
-        card.addEventListener('dragstart', function (e) { e.stopPropagation(); dragId = id; });
-        card.addEventListener('dragover', function (e) {
-          if (!isAdmin || !dragId) return;
-          e.preventDefault();
-          if (canDrop(id)) { dropTargetId = id; card.classList.add('oc-drop-target'); }
-        });
-        card.addEventListener('dragleave', function () { if (dropTargetId === id) { dropTargetId = null; card.classList.remove('oc-drop-target'); } });
-        card.addEventListener('drop', function (e) { e.preventDefault(); e.stopPropagation(); handleDrop(id); });
-        card.addEventListener('dragend', function () { dragId = null; dropTargetId = null; render(); });
+        if (isAdmin) {
+          card.addEventListener('pointerdown', function (e) {
+            if (connectMode || e.button !== 0 || e.target.closest('button,a')) return;
+            e.preventDefault();
+            const origin = positions[id];
+            const startX = e.clientX, startY = e.clientY;
+            let moved = false;
+            dragId = id;
+            card.setPointerCapture(e.pointerId);
+            card.classList.add('oc-moving');
+            function onMove(moveEvent) {
+              const dx = moveEvent.clientX - startX, dy = moveEvent.clientY - startY;
+              if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
+              card.style.left = Math.max(NODE_W / 2 + 20, origin.x + dx) + 'px';
+              card.style.top = Math.max(NODE_H / 2 + 20, origin.y + dy) + 'px';
+            }
+            async function onUp(upEvent) {
+              card.removeEventListener('pointermove', onMove);
+              card.removeEventListener('pointerup', onUp);
+              card.removeEventListener('pointercancel', onUp);
+              dragId = null;
+              if (!moved) { card.classList.remove('oc-moving'); return; }
+              suppressClickId = id;
+              const x = parseFloat(card.style.left), y = parseFloat(card.style.top);
+              const node = byId[id];
+              node.position_x = x; node.position_y = y;
+              const { error } = await sb.from(TABLE).update({
+                position_x: x, position_y: y, updated_at: new Date().toISOString()
+              }).eq('id', id);
+              if (error) showToast('Could not save card position: ' + error.message);
+              else showToast('Card position saved');
+              render();
+            }
+            card.addEventListener('pointermove', onMove);
+            card.addEventListener('pointerup', onUp);
+            card.addEventListener('pointercancel', onUp);
+          });
+        }
 
         const editBtn = card.querySelector('[data-oc-edit]');
         if (editBtn) editBtn.onclick = function (e) { e.stopPropagation(); openPersonModal('edit', byId[id]); };
@@ -469,27 +557,56 @@
       });
     }
 
-    function canDrop(targetId) {
-      if (!dragId || !targetId) return false;
-      if (targetId === dragId) return false;
+    async function chooseConnectionCard(id) {
       const byId = nodesById();
-      if (targetId === (byId[dragId] || {}).manager_id) return false;
-      return !getDescendantIds(rows, dragId).has(targetId);
+      if (!connectFromId) {
+        connectFromId = id;
+        renderToolbar(); render();
+        showToast('Now choose the report card');
+        return;
+      }
+      if (id === connectFromId) {
+        showToast('Choose a different card as the report');
+        return;
+      }
+      const report = byId[id], manager = byId[connectFromId];
+      if (connectMode === 'manager_id' && getDescendantIds(rows, id).has(connectFromId)) {
+        showToast('That solid line would create a reporting loop');
+        return;
+      }
+      if (connectMode === 'manager_id' && report.dotted_manager_id === connectFromId) {
+        showToast('This person already has that matrix manager');
+        return;
+      }
+      if (connectMode === 'dotted_manager_id' && report.manager_id === connectFromId) {
+        showToast('This person already has that direct manager');
+        return;
+      }
+      const field = connectMode;
+      const payload = { updated_at: new Date().toISOString() };
+      payload[field] = connectFromId;
+      const { error } = await sb.from(TABLE).update(payload).eq('id', id);
+      if (error) { showToast('Could not create line: ' + error.message); return; }
+      const label = field === 'manager_id' ? 'Solid' : 'Dotted';
+      showToast(label + ' line added: ' + manager.name + ' → ' + report.name);
+      connectMode = null; connectFromId = null;
+      await loadData();
     }
 
-    async function handleDrop(targetId) {
-      if (canDrop(targetId)) {
-        const byId = nodesById();
-        const name = (byId[dragId] || {}).name;
-        const targetName = (byId[targetId] || {}).name;
-        const { error } = await sb.from(TABLE).update({ manager_id: targetId, updated_at: new Date().toISOString() }).eq('id', dragId);
-        dragId = null; dropTargetId = null;
-        if (error) { showToast('Could not reassign: ' + error.message); render(); return; }
-        showToast(name + ' now reports to ' + targetName);
-        await loadData();
-      } else {
-        dragId = null; dropTargetId = null; render();
-      }
+    async function autoArrange() {
+      if (!rows.length) return;
+      const layout = layoutTree(rows);
+      const results = await Promise.all(rows.map(function (row) {
+        const pos = layout.positions[row.id];
+        if (!pos) return Promise.resolve({ error: null });
+        return sb.from(TABLE).update({
+          position_x: pos.x, position_y: pos.y, updated_at: new Date().toISOString()
+        }).eq('id', row.id);
+      }));
+      const failed = results.find(function (result) { return result.error; });
+      if (failed) { showToast('Could not auto arrange: ' + failed.error.message); return; }
+      showToast('Chart auto arranged');
+      await loadData();
     }
 
     async function deletePerson(node) {
