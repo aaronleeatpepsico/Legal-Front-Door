@@ -189,20 +189,13 @@ function OrgChart({ sb, editable }) {
     setEdges(peopleToEdges(people, isAdmin, stableEdgeHandlers))
   }, [people, isAdmin, stableNodeHandlers, stableEdgeHandlers, setNodes, setEdges])
 
-  // fit view after nodes are placed — use onInit for reliable first-fit
+  // fit view after first data load — wait for ReactFlow to finish measuring its container
   const fittedRef = useRef(false)
-  const onInit = useCallback(() => {
-    if (!fittedRef.current && nodes.length) {
-      fittedRef.current = true
-      fitView({ duration: 400, padding: 0.08 })
-    }
-  }, [nodes.length, fitView])
-
-  // re-fit whenever nodes change (e.g. after async load completes)
   useEffect(() => {
     if (nodes.length && !fittedRef.current) {
       fittedRef.current = true
-      setTimeout(() => fitView({ duration: 400, padding: 0.08 }), 150)
+      // 300 ms gives the browser time to reflow after display:none → block
+      setTimeout(() => fitView({ duration: 400, padding: 0.1, maxZoom: 1 }), 300)
     }
   }, [nodes.length, fitView])
 
@@ -299,13 +292,13 @@ function OrgChart({ sb, editable }) {
           onConnect={onConnect}
           onNodeDragStop={onNodeDragStop}
           onSelectionChange={onSelectionChange}
-          onInit={onInit}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           nodesDraggable={isAdmin}
           nodesConnectable={isAdmin}
           elementsSelectable={isAdmin}
           deleteKeyCode={null}
+          defaultViewport={{ x: 0, y: 0, zoom: 0.7 }}
           minZoom={0.15}
           maxZoom={2}
           proOptions={{ hideAttribution: true }}

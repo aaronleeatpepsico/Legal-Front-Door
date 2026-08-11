@@ -408,7 +408,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
-    if (btn.dataset.tab === 'orgchart') loadOrgChartTab();
+    if (btn.dataset.tab === 'orgchart') requestAnimationFrame(loadOrgChartTab);
     if (btn.dataset.tab === 'analytics') loadAnalytics();
     if (btn.dataset.tab === 'reports') loadReports();
     if (btn.dataset.tab === 'tools') loadToolsTab();

@@ -1811,7 +1811,9 @@ function openOrgModal(){
   document.getElementById('omo').classList.add('open');
   document.body.style.overflow='hidden';
   if (!_teamChartCtrl) {
-    _teamChartCtrl = OrgChart.mountPage(document.getElementById('teamChartMount'), { editable: false, supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_ANON_KEY });
+    requestAnimationFrame(() => {
+      _teamChartCtrl = OrgChart.mountPage(document.getElementById('teamChartMount'), { editable: false, supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_ANON_KEY });
+    });
   }
   else { _teamChartCtrl.refresh(); }
 }
