@@ -79,6 +79,23 @@ main{max-width:1500px;margin:0 auto;padding:32px 24px 64px;}
 .empty-hint{padding:24px;text-align:center;color:var(--text-muted);font-size:12.5px;}
 .save-status{font-size:11px;color:var(--text-muted);margin-left:8px;}
 
+/* ── ICON PICKER ── */
+.icon-picker-wrap{display:flex;align-items:center;gap:6px;position:relative;}
+.icon-picker-current{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:6px;background:#fff;flex-shrink:0;}
+.icon-picker-current img{width:22px;height:22px;object-fit:contain;}
+.icon-picker-current .icon{width:18px;height:18px;}
+.icon-picker-panel{position:absolute;top:calc(100% + 4px);left:0;z-index:300;background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px;box-shadow:0 6px 20px rgba(0,0,0,.13);width:310px;}
+.ip-lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:6px;}
+.ip-lbl+.ip-lbl,.ip-upload-row{margin-top:10px;}
+.ip-grid{display:flex;flex-wrap:wrap;gap:4px;}
+.ip-btn{width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;padding:3px;transition:border-color .12s,background .12s;}
+.ip-btn:hover{border-color:var(--pep-blue);background:rgba(54,128,206,.08);}
+.ip-btn.ip-active{border-color:var(--pep-blue);background:rgba(54,128,206,.15);}
+.ip-btn img{width:24px;height:24px;object-fit:contain;}
+.ip-btn .icon{width:16px;height:16px;}
+.ip-upload-row{display:flex;align-items:center;gap:8px;}
+.ip-upload-status{font-size:11px;color:var(--text-muted);}
+
 /* ── ANALYTICS TAB ── */
 table.analytics{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;}
 table.analytics th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);padding:10px 16px;background:var(--off-white);border-bottom:1px solid var(--border);}
@@ -366,6 +383,117 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 function escHtml(s){ if(s===null||s===undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function slugify(s){ return String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
 
+/* ── ICON PICKER ── */
+const SVG_ICONS = [
+  {id:'i-link',lbl:'Link'},{id:'i-file',lbl:'File'},{id:'i-scale',lbl:'Scale'},{id:'i-lock',lbl:'Lock'},
+  {id:'i-globe',lbl:'Globe'},{id:'i-chat',lbl:'Chat'},{id:'i-folder',lbl:'Folder'},{id:'i-clip',lbl:'Clipboard'},
+  {id:'i-edit',lbl:'Edit'},{id:'i-check',lbl:'Check'},{id:'i-gift',lbl:'Gift'},{id:'i-ticket',lbl:'Ticket'},
+  {id:'i-building',lbl:'Building'},{id:'i-shield',lbl:'Shield'},{id:'i-users',lbl:'Users'},{id:'i-phone',lbl:'Phone'},
+  {id:'i-megaphone',lbl:'Megaphone'},{id:'i-bot',lbl:'Bot'},{id:'i-book',lbl:'Book'},{id:'i-wrench',lbl:'Wrench'},
+  {id:'i-user',lbl:'User'},{id:'i-hourglass',lbl:'Hourglass'},{id:'i-flag',lbl:'Flag'},
+];
+let ICON_LIBRARY = [];
+
+async function loadIconLibrary(){
+  const { data } = await sb.storage.from('icons').list('', { sortBy: { column: 'name', order: 'asc' } });
+  ICON_LIBRARY = (data || []).filter(f => !f.name.startsWith('.'));
+}
+
+function iconPublicUrl(name){
+  return SUPABASE_URL + '/storage/v1/object/public/icons/' + encodeURIComponent(name);
+}
+
+function iconPickerHtml(currentIcon){
+  const isUrl = currentIcon && currentIcon.startsWith('http');
+  const previewHtml = isUrl
+    ? '<img src="' + escHtml(currentIcon) + '">'
+    : '<svg class="icon"><use href="#' + escHtml(currentIcon || 'i-link') + '"></use></svg>';
+
+  const svgBtns = SVG_ICONS.map(ic =>
+    '<button type="button" class="ip-btn' + (!isUrl && (currentIcon||'i-link') === ic.id ? ' ip-active' : '') + '" data-ipval="' + ic.id + '" title="' + ic.lbl + '">' +
+      '<svg class="icon"><use href="#' + ic.id + '"></use></svg></button>'
+  ).join('');
+
+  const uploadedSection = ICON_LIBRARY.length
+    ? '<div class="ip-lbl">Uploaded logos</div><div class="ip-grid">' +
+        ICON_LIBRARY.map(f => {
+          const url = iconPublicUrl(f.name);
+          return '<button type="button" class="ip-btn' + (currentIcon === url ? ' ip-active' : '') + '" data-ipval="' + url + '" title="' + escHtml(f.name) + '">' +
+            '<img src="' + url + '"></button>';
+        }).join('') + '</div>'
+    : '';
+
+  return '<div class="icon-picker-wrap">' +
+    '<div class="icon-picker-current">' + previewHtml + '</div>' +
+    '<input type="hidden" class="f-icon" value="' + escHtml(currentIcon || 'i-link') + '">' +
+    '<button type="button" class="btn btn-ghost btn-sm ip-toggle">Change icon</button>' +
+    '<div class="icon-picker-panel" style="display:none;">' +
+      '<div class="ip-lbl">Symbols</div><div class="ip-grid">' + svgBtns + '</div>' +
+      uploadedSection +
+      '<div class="ip-upload-row">' +
+        '<label class="btn btn-ghost btn-sm" style="cursor:pointer;">+ Upload PNG / logo' +
+          '<input type="file" class="ip-file-input" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none;">' +
+        '</label>' +
+        '<span class="ip-upload-status"></span>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function wireIconPicker(pickerWrap){
+  const panel   = pickerWrap.querySelector('.icon-picker-panel');
+  const hidden  = pickerWrap.querySelector('.f-icon');
+  const preview = pickerWrap.querySelector('.icon-picker-current');
+
+  pickerWrap.querySelector('.ip-toggle').addEventListener('click', e => {
+    e.stopPropagation();
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  });
+
+  pickerWrap.querySelectorAll('.ip-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.ipval;
+      hidden.value = val;
+      setIconPreview(preview, val);
+      pickerWrap.querySelectorAll('.ip-btn').forEach(b => b.classList.remove('ip-active'));
+      btn.classList.add('ip-active');
+      panel.style.display = 'none';
+    });
+  });
+
+  const fileInput    = pickerWrap.querySelector('.ip-file-input');
+  const uploadStatus = pickerWrap.querySelector('.ip-upload-status');
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    uploadStatus.textContent = 'Uploading…';
+    const safeName = Date.now() + '-' + file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const { error } = await sb.storage.from('icons').upload(safeName, file, { upsert: true, contentType: file.type });
+    if (error) { uploadStatus.textContent = 'Error: ' + error.message; return; }
+    await loadIconLibrary();
+    const url = iconPublicUrl(safeName);
+    hidden.value = url;
+    setIconPreview(preview, url);
+    uploadStatus.textContent = 'Done!';
+    setTimeout(() => { uploadStatus.textContent = ''; }, 2000);
+    panel.style.display = 'none';
+  });
+}
+
+function setIconPreview(previewEl, val){
+  if (val && val.startsWith('http')) {
+    previewEl.innerHTML = '<img src="' + escHtml(val) + '">';
+  } else {
+    previewEl.innerHTML = '<svg class="icon"><use href="#' + escHtml(val || 'i-link') + '"></use></svg>';
+  }
+}
+
+// Close any open icon picker panel when clicking elsewhere
+document.addEventListener('click', () => {
+  document.querySelectorAll('.icon-picker-panel').forEach(p => { p.style.display = 'none'; });
+});
+
 /* ── AUTH ── */
 const loginScreen = document.getElementById('login-screen');
 const app = document.getElementById('app');
@@ -541,6 +669,7 @@ function initApp(){
 }
 
 async function loadContentTab(){
+  await loadIconLibrary();
   const [ousRes, subsRes, linksRes] = await Promise.all([
     sb.from('operating_units').select('*').order('sort_order'),
     sb.from('subsections').select('*').order('sort_order'),
@@ -739,6 +868,10 @@ function linkRowHtml(l){
       '<span style="font-size:11px;color:var(--text-muted);white-space:nowrap;min-width:130px;">Grey text (below title)</span>' +
       '<input class="f-sublabel" value="' + escHtml(l.sub_label||'') + '" placeholder="e.g. Contact local team for instructions" style="flex:1;">' +
     '</div>' +
+    '<div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;">' +
+      '<span style="font-size:11px;color:var(--text-muted);white-space:nowrap;min-width:130px;">Icon</span>' +
+      iconPickerHtml(l.icon) +
+    '</div>' +
     '<div class="upload-status" style="grid-column:1/-1;font-size:11px;color:var(--text-muted);"></div>' +
     '</div>';
 }
@@ -763,6 +896,7 @@ function wireLinkRow(row){
       status: row.querySelector('.f-status').value,
       pending_note: row.querySelector('.f-note').value.trim() || null,
       sub_label: row.querySelector('.f-sublabel').value.trim() || null,
+      icon: row.querySelector('.f-icon') ? row.querySelector('.f-icon').value || null : null,
       updated_at: new Date().toISOString(),
     };
     const { error } = await sb.from('links').update(payload).eq('id', id);
@@ -797,6 +931,8 @@ function wireLinkRow(row){
       loadContentTab();
     });
   }
+  const ipWrap = row.querySelector('.icon-picker-wrap');
+  if (ipWrap) wireIconPicker(ipWrap);
 }
 
 function flashRow(row, msg){
@@ -825,6 +961,7 @@ async function addSubsection(ouId){
 
 /* ── TOOLS TAB ── */
 async function loadToolsTab(){
+  await loadIconLibrary();
   const body = document.getElementById('toolsBody');
   body.innerHTML = 'Loading…';
   const { data, error } = await sb.from('tools').select('*').order('sort_order');
@@ -847,6 +984,7 @@ function toolCardHtml(t){
       '<div><span class="field-label">Status</span><select class="f-status"><option value="live"'+(t.status==='live'?' selected':'')+'>Live</option><option value="coming_soon"'+(t.status==='coming_soon'?' selected':'')+'>Coming soon</option></select></div>' +
       '<div style="grid-column:1/-1"><span class="field-label">URL (only used when link type = url)</span><input class="f-url" value="' + escHtml(t.url||'') + '"></div>' +
       '<div style="grid-column:1/-1"><span class="field-label">Description</span><textarea class="f-desc">' + escHtml(t.description||'') + '</textarea></div>' +
+      '<div style="grid-column:1/-1"><span class="field-label">Icon</span>' + iconPickerHtml(t.icon) + '</div>' +
     '</div>' +
     '<div class="row-actions"><button class="icon-btn" data-save title="Save">\ud83d\udcbe</button><button class="icon-btn" data-delete title="Delete">\ud83d\uddd1</button></div>' +
   '</div>';
@@ -862,6 +1000,7 @@ function wireToolCard(card){
       status: card.querySelector('.f-status').value,
       url: card.querySelector('.f-url').value.trim() || null,
       description: card.querySelector('.f-desc').value.trim() || null,
+      icon: card.querySelector('.f-icon') ? card.querySelector('.f-icon').value || null : null,
       updated_at: new Date().toISOString(),
     };
     const { error } = await sb.from('tools').update(payload).eq('id', id);
@@ -872,6 +1011,8 @@ function wireToolCard(card){
     await sb.from('tools').delete().eq('id', id);
     loadToolsTab();
   });
+  const ipWrap = card.querySelector('.icon-picker-wrap');
+  if (ipWrap) wireIconPicker(ipWrap);
 }
 
 document.getElementById('addToolBtn').addEventListener('click', async () => {
@@ -885,6 +1026,7 @@ document.getElementById('addToolBtn').addEventListener('click', async () => {
 
 /* ── TRAINING TAB ── */
 async function loadTrainingTab(){
+  await loadIconLibrary();
   const body = document.getElementById('trainingBody');
   body.innerHTML = 'Loading…';
   const { data, error } = await sb.from('training_items').select('*').order('sort_order');
@@ -905,6 +1047,7 @@ function trainingCardHtml(t){
       '<div><span class="field-label">Pending note</span><input class="f-note" value="' + escHtml(t.pending_note||'') + '"></div>' +
       '<div style="grid-column:1/-1"><span class="field-label">URL</span><input class="f-url" value="' + escHtml(t.url||'') + '"></div>' +
       '<div style="grid-column:1/-1"><span class="field-label">Description</span><textarea class="f-desc">' + escHtml(t.description||'') + '</textarea></div>' +
+      '<div style="grid-column:1/-1"><span class="field-label">Icon / logo (overrides the automatic style)</span>' + iconPickerHtml(t.icon) + '</div>' +
     '</div>' +
     '<div class="row-actions"><button class="icon-btn" data-save title="Save">\ud83d\udcbe</button><button class="icon-btn" data-delete title="Delete">\ud83d\uddd1</button></div>' +
   '</div>';
@@ -920,6 +1063,7 @@ function wireTrainingCard(card){
       pending_note: card.querySelector('.f-note').value.trim() || null,
       url: card.querySelector('.f-url').value.trim() || null,
       description: card.querySelector('.f-desc').value.trim() || null,
+      icon: card.querySelector('.f-icon') ? card.querySelector('.f-icon').value || null : null,
       updated_at: new Date().toISOString(),
     };
     const { error } = await sb.from('training_items').update(payload).eq('id', id);
@@ -930,6 +1074,8 @@ function wireTrainingCard(card){
     await sb.from('training_items').delete().eq('id', id);
     loadTrainingTab();
   });
+  const ipWrap = card.querySelector('.icon-picker-wrap');
+  if (ipWrap) wireIconPicker(ipWrap);
 }
 
 document.getElementById('addTrainingBtn').addEventListener('click', async () => {

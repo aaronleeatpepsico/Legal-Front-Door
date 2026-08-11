@@ -1245,7 +1245,9 @@ function escHtml(s) {
 
 function renderLinkItem(link) {
   const iconId = link.icon || 'i-link';
-  const iconHtml = '<div class="link-icon"><svg class="icon"><use href="#' + escHtml(iconId) + '"></use></svg></div>';
+  const iconHtml = iconId.startsWith('http')
+    ? '<div class="link-icon"><img src="' + escHtml(iconId) + '" style="width:20px;height:20px;object-fit:contain;border-radius:2px;" alt=""></div>'
+    : '<div class="link-icon"><svg class="icon"><use href="#' + escHtml(iconId) + '"></use></svg></div>';
   // An uploaded document takes priority over the URL when both are set —
   // it's the actual destination this link opens.
   const effectiveUrl = link.file_url || link.url;
@@ -1515,7 +1517,10 @@ function wireToolClickTracking(tools) {
 }
 
 function renderToolCard(tool) {
-  const iconHtml = '<div class="tool-icon-wrap"><svg class="icon"><use href="#' + escHtml(tool.icon || 'i-link') + '"></use></svg></div>';
+  const _toolIcon = tool.icon || 'i-link';
+  const iconHtml = _toolIcon.startsWith('http')
+    ? '<div class="tool-icon-wrap"><img src="' + escHtml(_toolIcon) + '" style="width:26px;height:26px;object-fit:contain;border-radius:3px;" alt=""></div>'
+    : '<div class="tool-icon-wrap"><svg class="icon"><use href="#' + escHtml(_toolIcon) + '"></use></svg></div>';
   const isComingSoon = tool.status === 'coming_soon';
   const ctaHtml = isComingSoon
     ? '<div class="tool-card-link" style="color:var(--text-muted);">Coming soon</div>'

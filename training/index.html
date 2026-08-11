@@ -297,10 +297,13 @@ function trTileHtml(t, i){
   const style = systemStyle(t.system_name);
   const isCheckbox = (t.system_name || '').trim().toLowerCase() === 'checkbox';
   const isPending = !isCheckbox && !(t.status === 'live' && t.url);
-  const badgeInner = style.logo
-    ? '<img src="' + style.logo + '" alt="" style="width:100%;height:100%;object-fit:contain;padding:6px;">'
-    : style.badge;
-  const badgeStyle = style.logo
+  const customIcon = t.icon && t.icon.startsWith('http');
+  const badgeInner = customIcon
+    ? '<img src="' + t.icon + '" alt="" style="width:100%;height:100%;object-fit:contain;padding:6px;">'
+    : (style.logo
+        ? '<img src="' + style.logo + '" alt="" style="width:100%;height:100%;object-fit:contain;padding:6px;">'
+        : style.badge);
+  const badgeStyle = (customIcon || style.logo)
     ? 'background:#fff;border:1px solid var(--border);'
     : 'background:' + style.color + ';';
   return '<button class="tr-tile" id="trcard-' + i + '" style="--tr-color:' + style.color + ';" onclick="toggleTrTile(' + i + ')" aria-expanded="false">' +
