@@ -1925,6 +1925,25 @@ frame();
 .fb-placeholder svg{margin-bottom:16px;opacity:0.35;}
 .fb-placeholder-title{font-family:var(--font-head);font-weight:500;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:var(--pep-navy);margin-bottom:8px;}
 .fb-placeholder-desc{font-size:12px;font-weight:300;max-width:340px;line-height:1.6;}
+
+/* Checkbox iframe loading overlay */
+#cbo-loading{
+  position:absolute;inset:0;z-index:10;
+  background:#f5f7fa;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  border-radius:0 0 18px 18px;
+  opacity:1;transition:opacity 0.35s ease;
+  pointer-events:none;
+}
+#cbo-loading.hidden{opacity:0;}
+#cbo-loading-spinner{
+  width:36px;height:36px;border-radius:50%;
+  border:3px solid rgba(2,53,90,0.12);
+  border-top-color:var(--pep-blue);
+  animation:cbo-spin 0.8s linear infinite;
+}
+@keyframes cbo-spin{to{transform:rotate(360deg);}}
+#cbo-loading-label{font-size:13px;font-weight:500;color:var(--text-muted);letter-spacing:0.01em;}
 </style>
 
 <div id="cbo" onclick="if(event.target===this)closeCheckboxModal()">
@@ -1941,7 +1960,11 @@ frame();
         </button>
       </div>
     </div>
-    <div class="fbb">
+    <div class="fbb" style="position:relative;">
+      <div id="cbo-loading">
+        <div id="cbo-loading-spinner"></div>
+        <div id="cbo-loading-label">Opening…</div>
+      </div>
       <iframe id="cboFrame" src="about:blank" frameborder="0" allowfullscreen webkitallowfullscreen mozallowfullscreen msallowfullscreen title="Checkbox form"></iframe>
     </div>
   </div>
@@ -2007,8 +2030,21 @@ function openOrgModal(personId){
 function openFeedbackModal(){document.getElementById('fbo').classList.add('open');document.body.style.overflow='hidden';}
 function closeFeedbackModal(){document.getElementById('fbo').classList.remove('open');document.body.style.overflow='';}
 function closeOrgModal(){document.getElementById('omo').classList.remove('open');document.body.style.overflow='';}
+var _cboLoadTimer = null;
 function openCheckboxModal(url, title){
-  document.getElementById('cboFrame').src = url;
+  var loading = document.getElementById('cbo-loading');
+  var frame   = document.getElementById('cboFrame');
+  // Show overlay before setting src so the flash is never visible
+  loading.classList.remove('hidden');
+  clearTimeout(_cboLoadTimer);
+  frame.onload = function(){
+    // Checkbox is a SPA — the first load event fires on the shell, then JS
+    // renders the form. Give it 1.8 s after load to finish rendering before
+    // fading the overlay away.
+    clearTimeout(_cboLoadTimer);
+    _cboLoadTimer = setTimeout(function(){ loading.classList.add('hidden'); }, 1800);
+  };
+  frame.src = url;
   document.getElementById('cboTitle').textContent = title || 'Checkbox';
   document.getElementById('cboOpenTab').href = url;
   document.getElementById('cbo').classList.add('open');
@@ -2017,8 +2053,7 @@ function openCheckboxModal(url, title){
 function closeCheckboxModal(){
   document.getElementById('cbo').classList.remove('open');
   document.body.style.overflow = '';
-  // Reset the iframe so a half-filled form doesn't silently persist in the
-  // background, and so re-opening always starts fresh.
+  clearTimeout(_cboLoadTimer);
   document.getElementById('cboFrame').src = 'about:blank';
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeOrgModal();closeFeedbackModal();closeCheckboxModal();}});
