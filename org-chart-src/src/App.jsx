@@ -10,6 +10,7 @@ import { createClient } from '@supabase/supabase-js'
 import OrgNode from './OrgNode.jsx'
 import OrgEdge from './OrgEdge.jsx'
 import PersonModal from './PersonModal.jsx'
+import CardDetailModal from './CardDetailModal.jsx'
 import Toolbar from './Toolbar.jsx'
 import './styles.css'
 
@@ -69,6 +70,7 @@ function OrgChart({ sb, editable }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [modal, setModal]             = useState(null)  // { mode, seed }
+  const [cardDetail, setCardDetail]   = useState(null)  // person object for detail modal
   const [connectType, setConnectType] = useState(null)  // 'solid' | 'dotted' | null
   const [selectMode, setSelectMode]   = useState(false)
   const [toast, setToast]             = useState(null)
@@ -225,6 +227,14 @@ function OrgChart({ sb, editable }) {
     }).eq('id', node.id)
   }, [sb])
 
+  // ── card detail modal ─────────────────────────────────────────────────────
+
+  const onNodeClick = useCallback((_, node) => {
+    if (selectMode) return
+    const person = people.find(p => p.id === node.id)
+    if (person) setCardDetail(person)
+  }, [selectMode, people])
+
   // ── connect ───────────────────────────────────────────────────────────────
 
   const onConnect = useCallback(async ({ source, target, sourceHandle, targetHandle }) => {
@@ -318,6 +328,7 @@ function OrgChart({ sb, editable }) {
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           connectionMode="loose"
+          onNodeClick={onNodeClick}
           nodesDraggable={isAdmin && !selectMode}
           nodesConnectable={isAdmin && !selectMode}
           elementsSelectable={true}
@@ -345,6 +356,18 @@ function OrgChart({ sb, editable }) {
           ? "Drag cards to reposition · drag from a card’s bottom handle to draw a line · click a line to toggle type or delete"
           : 'Solid lines — direct management · dotted lines — matrix management'}
       </div>
+
+      {cardDetail && (
+        <CardDetailModal
+          person={cardDetail}
+          people={people}
+          isAdmin={isAdmin}
+          onClose={() => setCardDetail(null)}
+          onEdit={id => { setCardDetail(null); nodeHandlersRef.current.onEdit(id) }}
+          onAddReport={id => { setCardDetail(null); nodeHandlersRef.current.onAddReport(id) }}
+          onDelete={id => { setCardDetail(null); nodeHandlersRef.current.onDelete(id) }}
+        />
+      )}
 
       {modal && (
         <PersonModal

@@ -135,6 +135,81 @@
 }
 @keyframes oc2-spin { to { transform: rotate(360deg); } }
 
+/* ── Card detail modal ── */
+.oc2-detail-modal {
+  background: #fff;
+  border-radius: 18px;
+  width: 440px;
+  max-width: 95vw;
+  max-height: 82vh;
+  overflow-y: auto;
+  box-shadow: 0 40px 100px rgba(2,53,90,0.32);
+  font-family: 'Poppins', Arial, sans-serif;
+  position: relative;
+}
+.oc2-detail-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px 52px 20px 22px;
+  border-bottom: 1px solid rgba(2,53,90,0.08);
+  border-radius: 18px 18px 0 0;
+  overflow: hidden;
+}
+.oc2-detail-avatar {
+  width: 60px; height: 60px; border-radius: 50%; flex-shrink: 0;
+}
+.oc2-detail-avatar-img {
+  object-fit: cover; border: 2px solid rgba(2,53,90,0.12);
+}
+.oc2-detail-avatar-initials {
+  background: #eaf1fb; color: #3680CE;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 20px; letter-spacing: 0.02em;
+}
+.oc2-detail-identity { flex: 1; min-width: 0; }
+.oc2-detail-name { font-size: 18px; font-weight: 700; color: #02355A; line-height: 1.25; }
+.oc2-detail-role { font-size: 12.5px; color: #7a9ab8; margin-top: 4px; }
+.oc2-detail-dept { font-size: 11.5px; font-weight: 600; color: #3680CE; margin-top: 3px; }
+.oc2-detail-loc  { font-size: 11px; color: #7a9ab8; margin-top: 3px; }
+.oc2-detail-close {
+  position: absolute; top: 14px; right: 14px;
+  width: 30px; height: 30px; border-radius: 8px;
+  border: 1px solid rgba(2,53,90,0.12); background: #fff; color: #7a9ab8;
+  font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; line-height: 1;
+  transition: all 0.13s;
+}
+.oc2-detail-close:hover { color: #02355A; border-color: #02355A; }
+.oc2-detail-section { padding: 16px 22px; border-bottom: 1px solid rgba(2,53,90,0.06); }
+.oc2-detail-section:last-child { border-bottom: none; padding-bottom: 22px; border-radius: 0 0 18px 18px; }
+.oc2-detail-sec-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #b0c4d4; margin-bottom: 10px; }
+.oc2-detail-body { font-size: 13px; color: #2c4a62; line-height: 1.65; white-space: pre-wrap; }
+.oc2-detail-contact-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.oc2-detail-admin-row { display: flex; gap: 8px; flex-wrap: wrap; background: #f7f9fc; }
+/* Person pill */
+.oc2-detail-pill {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 12px; border-radius: 10px;
+  background: #f5f8fc; margin-bottom: 7px;
+}
+.oc2-detail-pill:last-child { margin-bottom: 0; }
+.oc2-detail-pill-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  background: #eaf1fb; color: #3680CE;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 11px;
+}
+.oc2-detail-pill-info { flex: 1; min-width: 0; }
+.oc2-detail-pill-name { font-size: 12.5px; font-weight: 600; color: #02355A; }
+.oc2-detail-pill-role { font-size: 10.5px; color: #7a9ab8; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oc2-detail-pill-badge {
+  font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 3px 8px; border-radius: 100px;
+  background: rgba(2,53,90,0.07); color: #7a9ab8; white-space: nowrap;
+}
+.oc2-detail-pill-badge-dotted { background: rgba(111,143,171,0.1); color: #6f8fab; border: 1px dashed #b0c4d4; }
+
 /* ── React Flow overrides ── */
 .react-flow__background { background: #fcfcfc; }
 .react-flow__controls { box-shadow: 0 4px 14px rgba(2,53,90,0.1); border-radius: 8px; border: 1px solid rgba(2,53,90,0.1); }
