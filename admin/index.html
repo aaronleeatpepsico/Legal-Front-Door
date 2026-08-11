@@ -143,6 +143,29 @@ table.analytics tr:last-child td{border-bottom:none;}
 .upload-zone{display:inline-block;padding:7px 12px;border:1.5px dashed var(--border-mid);border-radius:8px;font-size:12px;color:var(--pep-blue);cursor:pointer;transition:border-color var(--t),background var(--t);}
 .upload-zone:hover{border-color:var(--pep-blue);background:var(--off-white);}
 .upload-status{font-size:11px;color:var(--text-muted);margin-top:4px;}
+
+/* ── DOCUMENTS TAB ── */
+.doc-sidebar{display:flex;flex-direction:column;gap:12px;position:sticky;top:82px;}
+.doc-tree-toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.doc-tree{background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);padding:14px;}
+.doc-node{margin-bottom:2px;}
+.doc-node-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;transition:background var(--t);}
+.doc-node-row:hover{background:var(--off-white);}
+.doc-fold-toggle{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:11px;width:18px;flex-shrink:0;text-align:center;padding:0;}
+.doc-fold-gap{width:18px;flex-shrink:0;display:inline-block;}
+.doc-file-icon{font-size:15px;flex-shrink:0;}
+.doc-item-name{flex:1;font-size:13px;color:var(--text-body);}
+.doc-size{font-size:11px;color:var(--text-muted);margin-left:6px;}
+.doc-item-actions{display:flex;gap:4px;align-items:center;opacity:0;transition:opacity var(--t);}
+.doc-node-row:hover .doc-item-actions{opacity:1;}
+.doc-folder-children{margin-left:26px;border-left:2px solid var(--border);padding-left:8px;margin-top:2px;}
+
+/* Admin doc preview modal */
+.admin-preview-overlay{position:fixed;inset:0;z-index:9999;background:rgba(2,53,90,0.72);display:flex;align-items:center;justify-content:center;}
+.admin-preview-box{background:#fff;width:90vw;max-width:1200px;height:88vh;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(2,53,90,0.3);}
+.admin-preview-head{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.admin-preview-title{flex:1;font-size:13px;font-weight:600;color:var(--pep-navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.admin-preview-frame{flex:1;border:none;width:100%;background:#f5f5f5;}
 </style>
 </head>
 <body>
@@ -166,6 +189,7 @@ table.analytics tr:last-child td{border-bottom:none;}
     </a>
     <div class="tabs">
       <button class="tab-btn active" data-tab="content">Content</button>
+      <button class="tab-btn" data-tab="documents">Documents</button>
       <button class="tab-btn" data-tab="orgchart">Org Chart</button>
       <button class="tab-btn" data-tab="destinations">Destinations</button>
       <button class="tab-btn" data-tab="tools">Tools</button>
@@ -188,6 +212,16 @@ table.analytics tr:last-child td{border-bottom:none;}
       <div class="content-layout">
         <div class="ou-list" id="ouList"></div>
         <div id="ouDetail"><div class="empty-hint">Select an operating unit to edit its content.</div></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-documents">
+      <div class="content-layout">
+        <div class="doc-sidebar">
+          <div class="ou-list" id="docOuList"><div class="empty-hint" style="padding:14px;">Loading…</div></div>
+          <div class="ou-list" id="docSubList"></div>
+        </div>
+        <div id="docTreeContainer"><div class="empty-hint">Select an operating unit and subsection to manage its files.</div></div>
       </div>
     </div>
 
@@ -310,6 +344,18 @@ table.analytics tr:last-child td{border-bottom:none;}
   </main>
 </div>
 
+<!-- Admin doc preview modal -->
+<div id="adminDocPreviewModal" class="admin-preview-overlay" style="display:none;" onclick="if(event.target===this)closeAdminDocPreview()">
+  <div class="admin-preview-box">
+    <div class="admin-preview-head">
+      <span class="admin-preview-title" id="adminDocPreviewTitle"></span>
+      <a class="btn btn-ghost btn-sm" id="adminDocPreviewDownload" href="#" download>↓ Download</a>
+      <button class="btn btn-ghost btn-sm" onclick="closeAdminDocPreview()">✕ Close</button>
+    </div>
+    <iframe class="admin-preview-frame" id="adminDocPreviewFrame" src=""></iframe>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://pweqaibadpahfprqhjdg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_SumS4TPFIvwTvjk1VdYiwQ_LjVEDQ7l';
@@ -418,6 +464,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (btn.dataset.tab === 'destinations') loadDestinationsTab();
     if (btn.dataset.tab === 'legalhub') loadLegalHubTab();
     if (btn.dataset.tab === 'admins') loadAdminsTab();
+    if (btn.dataset.tab === 'documents') loadDocumentsTab();
   });
 });
 
@@ -1284,6 +1331,258 @@ async function loadAnalytics(){
   document.getElementById('analyticsByLink').innerHTML = linkRows.length
     ? barRowsHtml(linkRows)
     : '<div class="empty-hint">No link clicks recorded yet.</div>';
+}
+
+/* ── DOCUMENTS TAB ── */
+let docActiveOuId = null, docActiveSubId = null;
+
+function loadDocumentsTab() {
+  if (!OUS.length) {
+    loadContentTab().then(() => { renderDocOuList(); });
+  } else {
+    renderDocOuList();
+  }
+}
+
+function renderDocOuList() {
+  const el = document.getElementById('docOuList');
+  if (!el) return;
+  el.innerHTML = OUS.map(ou =>
+    '<button class="ou-list-item' + (ou.id === docActiveOuId ? ' active' : '') + '" data-id="' + ou.id + '">' +
+    '<span class="ou-dot" style="background:' + escHtml(ou.color || '#02355A') + '"></span>' +
+    escHtml(ou.name) + '</button>'
+  ).join('') || '<div class="empty-hint" style="padding:14px;">No operating units.</div>';
+  el.querySelectorAll('.ou-list-item').forEach(b => b.addEventListener('click', () => {
+    docActiveOuId = b.dataset.id;
+    docActiveSubId = null;
+    renderDocOuList();
+    renderDocSubList();
+    document.getElementById('docTreeContainer').innerHTML = '<div class="empty-hint">Select a subsection.</div>';
+  }));
+}
+
+function renderDocSubList() {
+  const el = document.getElementById('docSubList');
+  if (!el) return;
+  if (!docActiveOuId) { el.innerHTML = ''; return; }
+  const subs = SUBS.filter(s => s.ou_id === docActiveOuId).sort((a, b) => a.sort_order - b.sort_order);
+  el.innerHTML = subs.length
+    ? subs.map(s =>
+        '<button class="ou-list-item' + (s.id === docActiveSubId ? ' active' : '') + '" data-id="' + s.id + '">' +
+        escHtml(s.name) + '</button>'
+      ).join('')
+    : '<div class="empty-hint" style="padding:12px;">No subsections.</div>';
+  el.querySelectorAll('.ou-list-item').forEach(b => b.addEventListener('click', () => {
+    docActiveSubId = b.dataset.id;
+    renderDocSubList();
+    loadDocTree(docActiveSubId);
+  }));
+}
+
+async function loadDocTree(subId) {
+  const container = document.getElementById('docTreeContainer');
+  container.innerHTML = '<div class="empty-hint">Loading…</div>';
+  const { data, error } = await sb.from('documents').select('*').eq('subsection_id', subId).order('name');
+  if (error) { container.innerHTML = '<div class="empty-hint">Error: ' + escHtml(error.message) + '</div>'; return; }
+  const docs = data || [];
+  container.innerHTML =
+    '<div class="doc-tree-toolbar">' +
+      '<button class="btn btn-ghost btn-sm" id="docAddFolderRoot">📁 New folder</button>' +
+      '<button class="btn btn-ghost btn-sm" id="docUploadFileRoot">↑ Upload file</button>' +
+    '</div>' +
+    '<div class="doc-tree" id="docTree">' + renderDocTreeHtml(docs, null) + '</div>';
+  wireDocTree(docs, subId);
+}
+
+function docPublicUrl(path) {
+  return SUPABASE_URL + '/storage/v1/object/public/templates/' + path;
+}
+
+function docFileIcon(mime) {
+  if (!mime) return '📎';
+  if (mime.includes('pdf')) return '📕';
+  if (mime.includes('word') || mime.includes('document')) return '📘';
+  if (mime.includes('sheet') || mime.includes('excel')) return '📗';
+  if (mime.includes('presentation') || mime.includes('powerpoint')) return '📙';
+  if (mime.includes('image')) return '🖼';
+  return '📎';
+}
+
+function docFmtSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function renderDocTreeHtml(docs, parentId) {
+  const children = docs.filter(d => d.parent_id === parentId);
+  children.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+  if (!children.length) {
+    return parentId === null
+      ? '<div class="empty-hint">No files yet — create a folder or upload a file.</div>'
+      : '';
+  }
+  return children.map(doc => {
+    const isFolder = doc.type === 'folder';
+    const icon = isFolder ? '📁' : docFileIcon(doc.mime_type);
+    const childHtml = isFolder ? renderDocTreeHtml(docs, doc.id) : '';
+    const sizeStr = !isFolder && doc.size ? '<span class="doc-size">' + docFmtSize(doc.size) + '</span>' : '';
+    const pubUrl = !isFolder && doc.storage_path ? docPublicUrl(doc.storage_path) : '';
+    return '<div class="doc-node" data-id="' + doc.id + '">' +
+      '<div class="doc-node-row">' +
+        (isFolder
+          ? '<button class="doc-fold-toggle" data-folder-id="' + doc.id + '">▶</button>'
+          : '<span class="doc-fold-gap"></span>') +
+        '<span class="doc-file-icon">' + icon + '</span>' +
+        '<span class="doc-item-name">' + escHtml(doc.name) + sizeStr + '</span>' +
+        '<span class="doc-item-actions">' +
+          (isFolder
+            ? '<button class="icon-btn btn-sm" data-action="add-folder" data-id="' + doc.id + '" title="New subfolder">📁+</button>' +
+              '<button class="icon-btn btn-sm" data-action="upload" data-id="' + doc.id + '" title="Upload file here">↑</button>'
+            : '<button class="icon-btn btn-sm" data-action="preview" data-url="' + escHtml(pubUrl) + '" data-mime="' + escHtml(doc.mime_type || '') + '" data-name="' + escHtml(doc.name) + '" title="Preview">👁</button>' +
+              '<a class="icon-btn btn-sm" href="' + escHtml(pubUrl) + '" download="' + escHtml(doc.name) + '" title="Download">↓</a>') +
+          '<button class="icon-btn btn-sm" data-action="rename" data-id="' + doc.id + '" data-name="' + escHtml(doc.name) + '" title="Rename">✎</button>' +
+          '<button class="icon-btn btn-sm btn-danger" data-action="delete" data-id="' + doc.id + '" data-type="' + doc.type + '" data-path="' + escHtml(doc.storage_path || '') + '" data-name="' + escHtml(doc.name) + '" title="Delete">🗑</button>' +
+        '</span>' +
+      '</div>' +
+      (isFolder ? '<div class="doc-folder-children" id="dfc-' + doc.id + '" style="display:none">' + childHtml + '</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
+function wireDocTree(docs, subId) {
+  const tree = document.getElementById('docTree');
+  if (!tree) return;
+  tree.querySelectorAll('.doc-fold-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const fId = btn.dataset.folderId;
+      const childrenEl = document.getElementById('dfc-' + fId);
+      if (!childrenEl) return;
+      const open = childrenEl.style.display !== 'none';
+      childrenEl.style.display = open ? 'none' : 'block';
+      btn.textContent = open ? '▶' : '▼';
+      const row = btn.closest('.doc-node-row');
+      if (row) row.querySelector('.doc-file-icon').textContent = open ? '📁' : '📂';
+    });
+  });
+  tree.querySelectorAll('[data-action]').forEach(btn => {
+    if (btn.tagName === 'A') return;
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const a = btn.dataset.action;
+      if (a === 'add-folder') createDocFolder(btn.dataset.id, subId);
+      if (a === 'upload')     uploadDocFile(btn.dataset.id, subId);
+      if (a === 'rename')     renameDocItem(btn.dataset.id, btn.dataset.name, subId);
+      if (a === 'delete')     deleteDocItem(btn.dataset.id, btn.dataset.type, btn.dataset.path, btn.dataset.name, subId);
+      if (a === 'preview')    openAdminDocPreview(btn.dataset.url, btn.dataset.mime, btn.dataset.name);
+    });
+  });
+  const rootFolder = document.getElementById('docAddFolderRoot');
+  const rootUpload = document.getElementById('docUploadFileRoot');
+  if (rootFolder) rootFolder.addEventListener('click', () => createDocFolder(null, subId));
+  if (rootUpload) rootUpload.addEventListener('click', () => uploadDocFile(null, subId));
+}
+
+async function createDocFolder(parentId, subId) {
+  const name = prompt('Folder name:');
+  if (!name || !name.trim()) return;
+  const { error } = await sb.from('documents').insert({
+    name: name.trim(), type: 'folder',
+    subsection_id: subId, parent_id: parentId || null, sort_order: 0,
+  });
+  if (error) { alert('Could not create folder: ' + error.message); return; }
+  loadDocTree(subId);
+}
+
+async function uploadDocFile(parentId, subId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.multiple = false;
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    const safeExt = file.name.split('.').pop().replace(/[^a-zA-Z0-9]/g, '');
+    const storagePath = subId + '/' + Date.now() + '-' + Math.random().toString(36).slice(2) + (safeExt ? '.' + safeExt : '');
+    const container = document.getElementById('docTreeContainer');
+    const savedHtml = container.innerHTML;
+    container.innerHTML = '<div class="empty-hint">Uploading ' + escHtml(file.name) + '…</div>';
+    const { error: upErr } = await sb.storage.from('templates').upload(storagePath, file, {
+      contentType: file.type || 'application/octet-stream', upsert: false,
+    });
+    if (upErr) { container.innerHTML = savedHtml; wireDocTree(null, subId); alert('Upload failed: ' + upErr.message); return; }
+    const { error: dbErr } = await sb.from('documents').insert({
+      name: file.name, type: 'file',
+      subsection_id: subId, parent_id: parentId || null,
+      storage_path: storagePath, mime_type: file.type, size: file.size, sort_order: 0,
+    });
+    if (dbErr) {
+      await sb.storage.from('templates').remove([storagePath]);
+      container.innerHTML = savedHtml;
+      alert('Could not save file record: ' + dbErr.message);
+      return;
+    }
+    loadDocTree(subId);
+  };
+  input.click();
+}
+
+async function renameDocItem(id, currentName, subId) {
+  const newName = prompt('Rename to:', currentName);
+  if (!newName || !newName.trim() || newName.trim() === currentName) return;
+  const { error } = await sb.from('documents').update({ name: newName.trim(), updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { alert('Could not rename: ' + error.message); return; }
+  loadDocTree(subId);
+}
+
+async function deleteDocItem(id, type, storagePath, name, subId) {
+  const msg = type === 'folder'
+    ? 'Delete folder "' + name + '" and everything inside it? This cannot be undone.'
+    : 'Delete "' + name + '"? This cannot be undone.';
+  if (!confirm(msg)) return;
+  if (type === 'folder') {
+    const { data: allDocs } = await sb.from('documents').select('id,type,storage_path').eq('subsection_id', subId);
+    const paths = collectNestedFilePaths(allDocs || [], id);
+    if (paths.length) await sb.storage.from('templates').remove(paths);
+  } else if (storagePath) {
+    await sb.storage.from('templates').remove([storagePath]);
+  }
+  const { error } = await sb.from('documents').delete().eq('id', id);
+  if (error) { alert('Could not delete: ' + error.message); return; }
+  loadDocTree(subId);
+}
+
+function collectNestedFilePaths(allDocs, folderId) {
+  const paths = [];
+  const queue = [folderId];
+  while (queue.length) {
+    const cur = queue.shift();
+    allDocs.filter(d => d.parent_id === cur).forEach(d => {
+      if (d.type === 'file' && d.storage_path) paths.push(d.storage_path);
+      if (d.type === 'folder') queue.push(d.id);
+    });
+  }
+  return paths;
+}
+
+function openAdminDocPreview(url, mime, name) {
+  let src = url;
+  if (mime && !mime.includes('pdf') && !mime.includes('image')) {
+    src = 'https://docs.google.com/gview?url=' + encodeURIComponent(url) + '&embedded=true';
+  }
+  document.getElementById('adminDocPreviewTitle').textContent = name;
+  const dl = document.getElementById('adminDocPreviewDownload');
+  dl.href = url; dl.download = name;
+  document.getElementById('adminDocPreviewFrame').src = src;
+  document.getElementById('adminDocPreviewModal').style.display = 'flex';
+}
+
+function closeAdminDocPreview() {
+  document.getElementById('adminDocPreviewModal').style.display = 'none';
+  document.getElementById('adminDocPreviewFrame').src = '';
 }
 
 /* ── BROKEN LINK REPORTS ── */

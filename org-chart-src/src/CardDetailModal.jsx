@@ -54,15 +54,6 @@ export default function CardDetailModal({ person, people, isAdmin, onClose, onEd
           </div>
         )}
 
-        {/* Reports to */}
-        {(directManager || dottedManager) && (
-          <div className="oc2-detail-section">
-            <div className="oc2-detail-sec-label">Reports to</div>
-            {directManager && <PersonPill person={directManager} badge="Direct manager" />}
-            {dottedManager  && <PersonPill person={dottedManager}  badge="Indirect / matrix" dotted />}
-          </div>
-        )}
-
         {/* Direct reports */}
         {directReports.length > 0 && (
           <div className="oc2-detail-section">

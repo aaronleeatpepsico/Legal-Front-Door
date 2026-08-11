@@ -678,6 +678,31 @@ nav a:hover { background: rgba(255,255,255,0.18); color: #fff; border-color: rgb
 .embedded-portal-frame { display: block; width: 100%; height: 640px; border: none; background: #fff; }
 @media(max-width:600px) { .embedded-portal-frame { height: 520px; } }
 
+/* ── SUBSECTION DOCUMENT TREE ── */
+.sub-docs-section:empty { display: none; }
+.sub-docs-container { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.sub-docs-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 10px; }
+.sub-docs-tree { display: flex; flex-direction: column; gap: 2px; }
+.fd-doc-node { }
+.fd-file-node { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 10px; background: var(--off-white); }
+.fd-file-node:not(:last-child) { margin-bottom: 4px; }
+.fd-fold-btn { background: none; border: none; cursor: pointer; font-size: 13.5px; color: var(--text-body); display: flex; align-items: center; gap: 7px; padding: 7px 10px; border-radius: 10px; width: 100%; text-align: left; font-family: inherit; transition: background 0.15s; }
+.fd-fold-btn:hover { background: rgba(2,53,90,0.05); }
+.fd-fold-icon { font-size: 16px; flex-shrink: 0; }
+.fd-file-icon { font-size: 18px; flex-shrink: 0; }
+.fd-file-name { flex: 1; font-size: 13px; color: var(--text-body); font-weight: 500; }
+.fd-doc-btn { flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--pep-blue); text-decoration: none; padding: 5px 12px; border-radius: 100px; border: 1.5px solid rgba(54,128,206,0.4); background: none; cursor: pointer; font-family: inherit; white-space: nowrap; transition: background 0.15s, border-color 0.15s; }
+.fd-doc-btn:hover { background: rgba(54,128,206,0.08); border-color: var(--pep-blue); }
+.fd-doc-dl { margin-left: 6px; }
+.fd-folder-children { margin-left: 22px; border-left: 2px solid var(--border); padding-left: 10px; margin-top: 4px; margin-bottom: 4px; }
+
+/* ── DOCUMENT PREVIEW MODAL ── */
+.fd-preview-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(2,53,90,0.72); display: flex; align-items: center; justify-content: center; }
+.fd-preview-modal { background: #fff; width: 92vw; max-width: 1200px; height: 90vh; border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 32px 96px rgba(2,53,90,0.35); }
+.fd-preview-header { padding: 14px 20px; border-bottom: 1px solid rgba(2,53,90,0.1); display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.fd-preview-title { flex: 1; font-size: 14px; font-weight: 600; color: var(--pep-navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fd-preview-frame { flex: 1; border: none; width: 100%; background: #f0f0f0; }
+
 .legal-hub-gate { padding: 20px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: #f5f8fb; }
 .legal-hub-gate p { margin: 0 0 12px; font-size: 13.5px; color: var(--pep-navy); }
 .legal-hub-gate-btn { padding: 10px 18px; border: none; border-radius: 100px; background: var(--pep-blue); color: #fff; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
@@ -1096,6 +1121,10 @@ function toggleCard(id) {
 function toggleSub(id) {
   const el = document.getElementById(id);
   el.classList.toggle('open');
+  if (el.classList.contains('open')) {
+    const docsEl = el.querySelector('.sub-docs-section');
+    if (docsEl && !docsEl.dataset.loaded) loadSubDocs(docsEl, docsEl.dataset.subDbId);
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1220,6 +1249,91 @@ async function reportBrokenLink(btn) {
   if (error) console.warn('report failed', error);
 }
 
+/* ── DOCUMENT TREE ── */
+async function loadSubDocs(el, subId) {
+  el.dataset.loaded = '1';
+  var result = await sb.from('documents').select('*').eq('subsection_id', subId).order('name');
+  var docs = (result.data || []);
+  if (!docs.length) return;
+  el.innerHTML =
+    '<div class="sub-docs-container">' +
+    '<div class="sub-docs-label">Templates &amp; Files</div>' +
+    '<div class="sub-docs-tree">' + renderFrontDoorDocTree(docs, null) + '</div>' +
+    '</div>';
+}
+
+function fdFileIcon(mime) {
+  if (!mime) return '📎';
+  if (mime.indexOf('pdf') !== -1) return '📕';
+  if (mime.indexOf('word') !== -1 || mime.indexOf('document') !== -1) return '📘';
+  if (mime.indexOf('sheet') !== -1 || mime.indexOf('excel') !== -1) return '📗';
+  if (mime.indexOf('presentation') !== -1 || mime.indexOf('powerpoint') !== -1) return '📙';
+  if (mime.indexOf('image') !== -1) return '🖼';
+  return '📎';
+}
+
+function renderFrontDoorDocTree(docs, parentId) {
+  var children = docs.filter(function(d){ return d.parent_id === parentId; });
+  children.sort(function(a, b){
+    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+  if (!children.length) return '';
+  return children.map(function(doc){
+    var isFolder = doc.type === 'folder';
+    var icon = isFolder ? '📁' : fdFileIcon(doc.mime_type);
+    var childHtml = isFolder ? renderFrontDoorDocTree(docs, doc.id) : '';
+    var pubUrl = !isFolder && doc.storage_path
+      ? (SUPABASE_URL + '/storage/v1/object/public/templates/' + doc.storage_path) : '';
+    if (isFolder) {
+      return '<div class="fd-doc-node">' +
+        '<button class="fd-fold-btn" onclick="toggleDocFolder(this,\'' + escHtml(doc.id) + '\')">' +
+        '<span class="fd-fold-icon">' + icon + '</span> ' + escHtml(doc.name) + '</button>' +
+        '<div class="fd-folder-children" id="fdfc-' + doc.id + '" style="display:none">' + childHtml + '</div>' +
+      '</div>';
+    } else {
+      var urlArg  = JSON.stringify(pubUrl);
+      var mimeArg = JSON.stringify(doc.mime_type || '');
+      var nameArg = JSON.stringify(doc.name);
+      return '<div class="fd-doc-node fd-file-node">' +
+        '<span class="fd-file-icon">' + icon + '</span>' +
+        '<span class="fd-file-name">' + escHtml(doc.name) + '</span>' +
+        '<button class="fd-doc-btn" onclick="openDocPreview(' + urlArg + ',' + mimeArg + ',' + nameArg + ')">Preview</button>' +
+        '<a class="fd-doc-btn fd-doc-dl" href="' + escHtml(pubUrl) + '" download="' + escHtml(doc.name) + '">Download</a>' +
+      '</div>';
+    }
+  }).join('');
+}
+
+function toggleDocFolder(btn, folderId) {
+  var children = document.getElementById('fdfc-' + folderId);
+  if (!children) return;
+  var open = children.style.display !== 'none';
+  children.style.display = open ? 'none' : 'block';
+  var iconEl = btn.querySelector('.fd-fold-icon');
+  if (iconEl) iconEl.textContent = open ? '📁' : '📂';
+}
+
+function openDocPreview(url, mime, name) {
+  var src = url;
+  if (mime && mime.indexOf('pdf') === -1 && mime.indexOf('image') === -1) {
+    src = 'https://docs.google.com/gview?url=' + encodeURIComponent(url) + '&embedded=true';
+  }
+  document.getElementById('fdDocPreviewTitle').textContent = name;
+  var dl = document.getElementById('fdDocPreviewDownload');
+  dl.href = url; dl.download = name;
+  document.getElementById('fdDocPreviewFrame').src = src;
+  var overlay = document.getElementById('fdDocPreviewOverlay');
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDocPreview() {
+  document.getElementById('fdDocPreviewOverlay').style.display = 'none';
+  document.getElementById('fdDocPreviewFrame').src = '';
+  document.body.style.overflow = '';
+}
+
 function renderSubsection(ouSlug, sub, allLinks) {
   let subLinks = allLinks.filter(function(l){ return l.subsection_id === sub.id; })
                           .sort(function(a,b){ return a.sort_order - b.sort_order; });
@@ -1243,7 +1357,7 @@ function renderSubsection(ouSlug, sub, allLinks) {
       + '</div>'
     : '';
 
-  return '<div class="subsection" id="' + escHtml(subId) + '">'
+  return '<div class="subsection" id="' + escHtml(subId) + '" data-sub-db-id="' + escHtml(sub.id) + '">'
     + '<button class="sub-trigger" onclick="toggleSub(\'' + subId + '\')"><span class="sub-name">' + escHtml(sub.name) + '</span>'
     + '<span class="sub-count">' + countLabel + '</span>'
     + '<div class="sub-chev"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div></button>'
@@ -1251,6 +1365,7 @@ function renderSubsection(ouSlug, sub, allLinks) {
     + subLinks.map(renderLinkItem).join('')
     + '</div>'
     + embedHtml
+    + '<div class="sub-docs-section" data-sub-db-id="' + escHtml(sub.id) + '"></div>'
     + '</div></div>';
 }
 
@@ -2133,6 +2248,18 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeOrgMod
   });
 })();
 </script>
+
+<!-- Document preview modal -->
+<div id="fdDocPreviewOverlay" class="fd-preview-overlay" style="display:none;" onclick="if(event.target===this)closeDocPreview()">
+  <div class="fd-preview-modal">
+    <div class="fd-preview-header">
+      <span class="fd-preview-title" id="fdDocPreviewTitle"></span>
+      <a class="fd-doc-btn" id="fdDocPreviewDownload" href="#" download>Download</a>
+      <button class="fd-doc-btn" onclick="closeDocPreview()" style="margin-left:8px;">✕ Close</button>
+    </div>
+    <iframe class="fd-preview-frame" id="fdDocPreviewFrame" src="" allowfullscreen></iframe>
+  </div>
+</div>
 
 </body>
 </html>
