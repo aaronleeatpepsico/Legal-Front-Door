@@ -1,28 +1,8 @@
 import React from 'react'
 import { useReactFlow } from '@xyflow/react'
-import { layoutTree } from './layout.js'
 
 export default function Toolbar({ connectType, setConnectType, connectionSource, setConnectionSource, selectMode, setSelectMode, people, sb, onAddPerson, onDeleteSelected, selectedCount, loadData, showToast }) {
-  const { fitView, setNodes } = useReactFlow()
-
-  const handleAutoArrange = async () => {
-    if (!people.length) return
-    const positions = layoutTree(people)
-    const updates = people
-      .filter(p => positions[p.id])
-      .map(p => sb.from('org_chart_people').update({
-        position_x: positions[p.id].x,
-        position_y: positions[p.id].y,
-        updated_at: new Date().toISOString(),
-      }).eq('id', p.id))
-
-    const results = await Promise.all(updates)
-    const failed = results.find(r => r.error)
-    if (failed) { showToast('Could not auto arrange: ' + failed.error.message); return }
-    await loadData()
-    setTimeout(() => fitView({ duration: 500, padding: 0.1 }), 80)
-    showToast('Chart auto arranged')
-  }
+  const { fitView } = useReactFlow()
 
   return (
     <div className="oc2-toolbar">
@@ -55,10 +35,6 @@ export default function Toolbar({ connectType, setConnectType, connectionSource,
       >
         ⬚ Select
       </button>
-
-      <div className="oc2-toolbar-sep" />
-
-      <button className="oc2-btn" onClick={handleAutoArrange}>Auto arrange</button>
 
       {selectedCount > 0 && (
         <button className="oc2-btn oc2-btn-danger" onClick={onDeleteSelected}>
