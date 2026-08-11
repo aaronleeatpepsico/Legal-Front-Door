@@ -47,7 +47,7 @@
 .oc2-info { flex: 1; min-width: 0; }
 .oc2-name { font-size: 11.5px; font-weight: 600; color: #02355A; line-height: 1.35; word-break: break-word; overflow-wrap: break-word; }
 .oc2-role { font-size: 9.5px; color: #7a9ab8; margin-top: 2px; line-height: 1.35; word-break: break-word; overflow-wrap: break-word; }
-.oc2-dept { font-size: 9px; font-weight: 500; color: #3680CE; margin-top: 3px; line-height: 1.35; word-break: break-word; overflow-wrap: break-word; }
+.oc2-dept { font-size: 9px; font-weight: 500; color: #3680CE; margin-top: 3px; line-height: 1.35; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; }
 .oc2-loc  { font-size: 8.5px; color: #7a9ab8; margin-top: 1px; line-height: 1.35; word-break: break-word; overflow-wrap: break-word; }
 
 /* selected node ring — add to .react-flow__node when selected */
@@ -166,7 +166,7 @@
 .oc2-detail-identity { flex: 1; min-width: 0; }
 .oc2-detail-name { font-size: 18px; font-weight: 700; color: #02355A; line-height: 1.25; }
 .oc2-detail-role { font-size: 12.5px; color: #7a9ab8; margin-top: 4px; }
-.oc2-detail-dept { font-size: 11.5px; font-weight: 600; color: #3680CE; margin-top: 3px; }
+.oc2-detail-dept { font-size: 11.5px; font-weight: 600; color: #3680CE; margin-top: 3px; white-space: pre-wrap; }
 .oc2-detail-loc  { font-size: 11px; color: #7a9ab8; margin-top: 3px; }
 .oc2-detail-close {
   position: absolute; top: 14px; right: 14px;

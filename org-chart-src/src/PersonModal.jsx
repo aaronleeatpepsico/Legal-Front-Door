@@ -197,7 +197,7 @@ export default function PersonModal({ mode, seed, people, sb, onClose, onSaved, 
         {/* Department */}
         <div className="oc2-field">
           <label className="oc2-label">Department</label>
-          <input className="oc2-input" value={form.department} onChange={set('department')} placeholder="e.g. China Foods Marketing" />
+          <textarea className="oc2-textarea" value={form.department} onChange={set('department')} placeholder="e.g. China Foods Marketing" rows={2} style={{ resize: 'vertical' }} />
         </div>
 
         {/* Location */}
