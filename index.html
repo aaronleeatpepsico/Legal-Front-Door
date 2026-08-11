@@ -1272,6 +1272,8 @@ function fdFileIcon(mime) {
   return '📎';
 }
 
+function sqe(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
 function renderFrontDoorDocTree(docs, parentId) {
   var children = docs.filter(function(d){ return d.parent_id === parentId; });
   children.sort(function(a, b){
@@ -1292,13 +1294,10 @@ function renderFrontDoorDocTree(docs, parentId) {
         '<div class="fd-folder-children" id="fdfc-' + doc.id + '" style="display:none">' + childHtml + '</div>' +
       '</div>';
     } else {
-      var urlArg  = JSON.stringify(pubUrl);
-      var mimeArg = JSON.stringify(doc.mime_type || '');
-      var nameArg = JSON.stringify(doc.name);
       return '<div class="fd-doc-node fd-file-node">' +
         '<span class="fd-file-icon">' + icon + '</span>' +
         '<span class="fd-file-name">' + escHtml(doc.name) + '</span>' +
-        '<button class="fd-doc-btn" onclick="openDocPreview(' + urlArg + ',' + mimeArg + ',' + nameArg + ')">Preview</button>' +
+        '<button class="fd-doc-btn" onclick="openDocPreview(\'' + sqe(pubUrl) + '\',\'' + sqe(doc.mime_type||'') + '\',\'' + sqe(doc.name) + '\')">Preview</button>' +
         '<a class="fd-doc-btn fd-doc-dl" href="' + escHtml(pubUrl) + '" download="' + escHtml(doc.name) + '">Download</a>' +
       '</div>';
     }
