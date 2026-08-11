@@ -21,7 +21,7 @@ const edgeTypes = { orgEdge: OrgEdge }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-function peopleToNodes(people, isAdmin, handlers, connectionSourceId) {
+function peopleToNodes(people, isAdmin, handlers, connectionSourceId, matchedIds) {
   return people.map(p => ({
     id: p.id,
     type: 'orgPerson',
@@ -30,7 +30,13 @@ function peopleToNodes(people, isAdmin, handlers, connectionSourceId) {
       y: p.position_y != null ? p.position_y : 0,
     },
     style: { width: 180 },
-    data: { ...p, isAdmin, isConnectionSource: p.id === connectionSourceId, ...handlers },
+    data: {
+      ...p,
+      isAdmin,
+      isConnectionSource: p.id === connectionSourceId,
+      dimmed: matchedIds !== null && !matchedIds.has(p.id),
+      ...handlers,
+    },
   }))
 }
 
@@ -80,6 +86,7 @@ function OrgChart({ sb, editable }) {
   const [connectionSource, setConnectionSource] = useState(null) // { id, name } first card clicked when drawing
   const [selectMode, setSelectMode]   = useState(false)
   const [toast, setToast]             = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const [selectedCount, setSelectedCount] = useState(0)
   const [loading, setLoading]         = useState(true)
   const [loadError, setLoadError]     = useState(null)
@@ -91,6 +98,22 @@ function OrgChart({ sb, editable }) {
     clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => setToast(null), 2400)
   }, [])
+
+  // null = no active search (show all); Set<id> = only these match
+  const matchedIds = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return null
+    const ids = new Set()
+    people.forEach(p => {
+      if (
+        (p.name       || '').toLowerCase().includes(q) ||
+        (p.role       || '').toLowerCase().includes(q) ||
+        (p.department || '').toLowerCase().includes(q) ||
+        (p.location   || '').toLowerCase().includes(q)
+      ) ids.add(p.id)
+    })
+    return ids
+  }, [searchQuery, people])
 
   // ── auth ──────────────────────────────────────────────────────────────────
 
@@ -201,8 +224,16 @@ function OrgChart({ sb, editable }) {
   // ── sync people → nodes/edges ─────────────────────────────────────────────
 
   useEffect(() => {
-    setNodes(peopleToNodes(people, isAdmin, stableNodeHandlers, connectionSource?.id))
-  }, [people, isAdmin, stableNodeHandlers, setNodes, connectionSource])
+    setNodes(peopleToNodes(people, isAdmin, stableNodeHandlers, connectionSource?.id, matchedIds))
+  }, [people, isAdmin, stableNodeHandlers, setNodes, connectionSource, matchedIds])
+
+  // When search results change, pan+zoom to fit matched cards
+  useEffect(() => {
+    if (!matchedIds || matchedIds.size === 0) return
+    setTimeout(() => {
+      fitView({ nodes: [...matchedIds].map(id => ({ id })), duration: 400, padding: 0.3, maxZoom: 1.2 })
+    }, 80)
+  }, [matchedIds, fitView])
 
   useEffect(() => {
     setEdges(peopleToEdges(people, isAdmin, stableEdgeHandlers))
@@ -400,6 +431,27 @@ function OrgChart({ sb, editable }) {
           maxZoom={2}
           proOptions={{ hideAttribution: true }}
         >
+          <Panel position="top-left" style={{ margin: 10 }}>
+            <div className="oc2-search-wrap">
+              <span className="oc2-search-icon">🔍</span>
+              <input
+                className="oc2-search-input"
+                type="search"
+                placeholder="Search name, role, team…"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <>
+                  <span className="oc2-search-count">
+                    {matchedIds ? matchedIds.size : 0} result{matchedIds?.size !== 1 ? 's' : ''}
+                  </span>
+                  <button className="oc2-search-clear" onClick={() => setSearchQuery('')} title="Clear search">✕</button>
+                </>
+              )}
+            </div>
+          </Panel>
+
           <Background variant="dots" gap={20} size={1} color="#c8d8e8" />
           <Controls showInteractive={false} />
           <MiniMap
