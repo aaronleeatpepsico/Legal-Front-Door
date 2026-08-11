@@ -69,7 +69,7 @@ main{max-width:1500px;margin:0 auto;padding:32px 24px 64px;}
 .sub-block{background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:16px;overflow:hidden;}
 .sub-block-header{padding:14px 18px;background:var(--off-white);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
 .sub-block-header h3{font-size:13px;font-weight:600;color:var(--pep-navy);}
-.link-row{display:grid;grid-template-columns:16px 1fr 1fr 90px 90px 70px;gap:8px;padding:10px 18px;border-bottom:1px solid var(--border);align-items:center;}
+.link-row{display:grid;grid-template-columns:16px 1fr 1fr 90px 70px;gap:8px;padding:10px 18px;border-bottom:1px solid var(--border);align-items:center;}
 .link-row:last-child{border-bottom:none;}
 .link-row input,.link-row select{width:100%;padding:6px 8px;border:1px solid var(--border-mid);border-radius:6px;font-family:inherit;font-size:12px;color:var(--text-body);}
 .link-row .row-actions{display:flex;gap:4px;justify-content:flex-end;}
@@ -870,7 +870,6 @@ function linkRowHtml(l){
     '<input class="f-label" value="' + escHtml(l.label) + '" placeholder="Label">' +
     '<input class="f-url" value="' + escHtml(l.url||'') + '" placeholder="URL (or upload a PDF instead \u2192)">' +
     '<select class="f-status"><option value="live"' + (l.status==='live'?' selected':'') + '>Live</option><option value="pending"' + (l.status==='pending'?' selected':'') + '>Pending</option></select>' +
-    '<input class="f-note" value="' + escHtml(l.pending_note||'') + '" placeholder="Pending note">' +
     '<div class="row-actions">' +
       (l.file_url
         ? '<a href="' + escHtml(l.file_url) + '" target="_blank" rel="noopener" class="icon-btn" title="View uploaded file">\ud83d\udcc4</a>' +
@@ -910,7 +909,6 @@ function wireLinkRow(row){
       url: url,
       destination_id: destinationId,
       status: row.querySelector('.f-status').value,
-      pending_note: row.querySelector('.f-note').value.trim() || null,
       sub_label: row.querySelector('.f-sublabel').value.trim() || null,
       icon: row.querySelector('.f-icon') ? row.querySelector('.f-icon').value || null : null,
       updated_at: new Date().toISOString(),
