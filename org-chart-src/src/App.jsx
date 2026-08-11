@@ -68,6 +68,8 @@ function OrgChart({ sb, editable }) {
   const [connectType, setConnectType] = useState(null)  // 'solid' | 'dotted' | null
   const [toast, setToast]             = useState(null)
   const [selectedCount, setSelectedCount] = useState(0)
+  const [loading, setLoading]         = useState(true)
+  const [loadError, setLoadError]     = useState(null)
   const toastTimer = useRef(null)
   const { fitView } = useReactFlow()
 
@@ -97,9 +99,17 @@ function OrgChart({ sb, editable }) {
   // ── data ──────────────────────────────────────────────────────────────────
 
   const loadData = useCallback(async () => {
+    setLoading(true)
+    setLoadError(null)
     const { data, error } = await sb.from(TABLE).select('*').order('sort_order').order('created_at')
-    if (error) { console.error('OrgChart load error:', error); return }
+    if (error) {
+      console.error('OrgChart load error:', error)
+      setLoadError(error.message)
+      setLoading(false)
+      return
+    }
     setPeople(data || [])
+    setLoading(false)
   }, [sb])
 
   useEffect(() => { loadData() }, [loadData])
@@ -179,14 +189,22 @@ function OrgChart({ sb, editable }) {
     setEdges(peopleToEdges(people, isAdmin, stableEdgeHandlers))
   }, [people, isAdmin, stableNodeHandlers, stableEdgeHandlers, setNodes, setEdges])
 
-  // fit view on first load
+  // fit view after nodes are placed — use onInit for reliable first-fit
   const fittedRef = useRef(false)
-  useEffect(() => {
-    if (people.length && !fittedRef.current) {
+  const onInit = useCallback(() => {
+    if (!fittedRef.current && nodes.length) {
       fittedRef.current = true
-      setTimeout(() => fitView({ duration: 400, padding: 0.08 }), 100)
+      fitView({ duration: 400, padding: 0.08 })
     }
-  }, [people, fitView])
+  }, [nodes.length, fitView])
+
+  // re-fit whenever nodes change (e.g. after async load completes)
+  useEffect(() => {
+    if (nodes.length && !fittedRef.current) {
+      fittedRef.current = true
+      setTimeout(() => fitView({ duration: 400, padding: 0.08 }), 150)
+    }
+  }, [nodes.length, fitView])
 
   // ── drag position save ────────────────────────────────────────────────────
 
@@ -256,6 +274,23 @@ function OrgChart({ sb, editable }) {
       )}
 
       <div className="oc2-flow-wrap">
+        {loading && (
+          <div className="oc2-status-overlay">
+            <div className="oc2-status-spinner" />
+            <span>Loading org chart…</span>
+          </div>
+        )}
+        {loadError && (
+          <div className="oc2-status-overlay">
+            <span style={{ color: '#b3462c' }}>Could not load org chart: {loadError}</span>
+          </div>
+        )}
+        {!loading && !loadError && people.length === 0 && (
+          <div className="oc2-status-overlay">
+            <span>No people in the org chart yet.</span>
+            {isAdmin && <span style={{ marginTop: 6 }}>Click "Add person" in the toolbar above to get started.</span>}
+          </div>
+        )}
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -264,13 +299,13 @@ function OrgChart({ sb, editable }) {
           onConnect={onConnect}
           onNodeDragStop={onNodeDragStop}
           onSelectionChange={onSelectionChange}
+          onInit={onInit}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           nodesDraggable={isAdmin}
           nodesConnectable={isAdmin}
           elementsSelectable={isAdmin}
           deleteKeyCode={null}
-          fitView={false}
           minZoom={0.15}
           maxZoom={2}
           proOptions={{ hideAttribution: true }}

@@ -110,6 +110,20 @@
 .oc2-color-row input[type="color"] { width: 34px; height: 28px; padding: 2px; border: 1px solid rgba(2,53,90,0.15); border-radius: 6px; cursor: pointer; background: none; }
 .oc2-color-note { font-size: 11px; color: #7a9ab8; }
 
+/* ── Loading / error overlay ── */
+.oc2-status-overlay {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; color: #7a9ab8; font-size: 13px; font-family: 'Poppins', Arial, sans-serif;
+  background: rgba(255,255,255,0.85); pointer-events: none;
+}
+.oc2-status-spinner {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 3px solid rgba(2,53,90,0.12); border-top-color: #3680CE;
+  animation: oc2-spin 0.7s linear infinite;
+}
+@keyframes oc2-spin { to { transform: rotate(360deg); } }
+
 /* ── React Flow overrides ── */
 .react-flow__background { background: #fcfcfc; }
 .react-flow__controls { box-shadow: 0 4px 14px rgba(2,53,90,0.1); border-radius: 8px; border: 1px solid rgba(2,53,90,0.1); }
