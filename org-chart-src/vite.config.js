@@ -14,7 +14,7 @@ export default defineConfig({
       entry: 'src/main.jsx',
       name: 'OrgChart',
       formats: ['iife'],
-      fileName: () => 'org-chart-widget.js',
+      fileName: () => 'org-chart-widget-core.js',
     },
     outDir: 'dist',
     emptyOutDir: true,
