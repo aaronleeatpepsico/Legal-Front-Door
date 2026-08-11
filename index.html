@@ -926,7 +926,7 @@ header { padding: 8px 0; }
       <a href="/newsletter/">Newsletter</a>
       <a href="/training/">Training</a>
       <a href="#" onclick="openOrgModal();return false;">Our Team</a>
-      <a href="#" onclick="toggleChat();return false;">Legal AI</a>
+      <a href="#" onclick="toggleChat();return false;">Legal Larry</a>
       <a href="/admin/" class="nav-admin" id="navAdminLink" style="display:none;" title="">Admin / Sign in</a>
       <a href="#" class="nav-admin" id="navSignOutLink" style="display:none;background:transparent !important;border-color:rgba(255,255,255,0.24) !important;" onclick="signOutOfSite();return false;">Sign out</a>
     </nav>
@@ -1023,15 +1023,26 @@ header { padding: 8px 0; }
       </div>
       <button class="cp-close" id="chat-close"><svg class="icon"><use href="#i-close"></use></svg></button>
     </div>
-    <div class="cp-fallback-note" id="cpFallbackNote">
-      <span>Having trouble loading? <a href="https://pepsico.checkbox.ai/login" target="_blank" rel="noopener">Sign into Checkbox</a>, then try reopening this chat.</span>
-      <button id="cpFallbackDismiss" title="Dismiss">✕</button>
+    <div class="chat-iframe-wrap">
+      <div id="chat-loading">
+        <div class="chat-error-icon">
+          <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="9" stroke="#02355A" stroke-width="1.8"/><path d="M11 7v5" stroke="#02355A" stroke-width="1.8" stroke-linecap="round"/><circle cx="11" cy="15.5" r="1" fill="#02355A"/></svg>
+        </div>
+        <div id="chat-loading-spinner"></div>
+        <div id="chat-loading-label">Starting Legal Larry…</div>
+        <div id="chat-loading-sub">Sign into Checkbox first, then reopen the chat. If you're already signed in, it may just be taking a moment.</div>
+        <div id="chat-loading-actions">
+          <a href="https://pepsico.checkbox.ai/login" target="_blank" rel="noopener" class="chat-action-btn chat-action-btn-primary">Sign into Checkbox ↗</a>
+          <button class="chat-action-btn chat-action-btn-ghost" onclick="chatRetry()">Try again</button>
+        </div>
+      </div>
+      <iframe
+        id="chatFrame"
+        class="chat-iframe"
+        src="https://pepsico.checkbox.ai/app/ai-assistant/2a08598b-b810-414c-acf4-a3547917677b/start?isShared=true"
+        allow="clipboard-read; clipboard-write">
+      </iframe>
     </div>
-    <iframe
-      class="chat-iframe"
-      src="https://pepsico.checkbox.ai/app/ai-assistant/2a08598b-b810-414c-acf4-a3547917677b/start?isShared=true"
-      allow="clipboard-read; clipboard-write">
-    </iframe>
   </div>
 
   <!-- Mini search bar (closed state) -->
@@ -1063,10 +1074,44 @@ header { padding: 8px 0; }
 .cp-close{width:34px;height:34px;border:none;border-radius:10px;background:rgba(255,255,255,.12);color:#fff;cursor:pointer;font-size:14px;transition:background .15s;}
 .cp-close:hover{background:rgba(255,255,255,.22);}
 .chat-iframe{width:100%;flex:1;border:none;background:#fff;}
-.cp-fallback-note{font-size:11px;line-height:1.4;color:var(--pep-blue-mid);background:#f0f5fa;padding:8px 14px 8px 18px;border-bottom:1px solid rgba(0,0,0,0.07);flex-shrink:0;display:flex;align-items:center;gap:10px;justify-content:space-between;}
-.cp-fallback-note a{color:var(--pep-blue-mid);font-weight:600;text-decoration:underline;}
-.cp-fallback-note button{background:none;border:none;color:var(--pep-blue-mid);opacity:0.6;font-size:12px;cursor:pointer;padding:2px 4px;flex-shrink:0;}
-.cp-fallback-note button:hover{opacity:1;}
+/* Chat iframe loading / error overlay */
+.chat-iframe-wrap{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column;}
+#chat-loading{
+  position:absolute;inset:0;z-index:10;
+  background:#f5f7fa;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  text-align:center;padding:32px 28px;
+  opacity:1;transition:opacity 0.4s ease;
+  pointer-events:none;
+}
+#chat-loading.hidden{opacity:0;pointer-events:none;}
+#chat-loading.error{pointer-events:all;}
+#chat-loading-spinner{
+  width:32px;height:32px;border-radius:50%;
+  border:3px solid rgba(2,53,90,0.12);
+  border-top-color:var(--pep-blue);
+  animation:chat-spin 0.8s linear infinite;
+  flex-shrink:0;
+}
+#chat-loading.error #chat-loading-spinner{display:none;}
+@keyframes chat-spin{to{transform:rotate(360deg);}}
+#chat-loading-label{font-size:13.5px;font-weight:600;color:var(--text-primary);line-height:1.4;}
+#chat-loading-sub{font-size:12px;color:var(--text-muted);max-width:260px;line-height:1.6;display:none;}
+#chat-loading.error #chat-loading-sub{display:block;}
+.chat-error-icon{display:none;width:44px;height:44px;border-radius:50%;background:rgba(2,53,90,0.07);align-items:center;justify-content:center;margin-bottom:2px;flex-shrink:0;}
+#chat-loading.error .chat-error-icon{display:flex;}
+#chat-loading-actions{display:none;flex-direction:column;gap:8px;margin-top:4px;width:100%;max-width:240px;}
+#chat-loading.error #chat-loading-actions{display:flex;}
+.chat-action-btn{
+  padding:9px 16px;border-radius:100px;font-size:12.5px;font-weight:600;cursor:pointer;
+  border:1.5px solid var(--pep-blue);font-family:var(--font-body);text-align:center;
+  text-decoration:none;display:block;
+  transition:background 0.15s,color 0.15s;
+}
+.chat-action-btn-primary{background:var(--pep-blue);color:#fff;}
+.chat-action-btn-primary:hover{background:var(--pep-blue-mid);color:#fff;}
+.chat-action-btn-ghost{background:transparent;color:var(--pep-blue);}
+.chat-action-btn-ghost:hover{background:rgba(54,128,206,0.08);}
 
 /* ── mini search bar FAB ── */
 #chat-fab{
@@ -1202,28 +1247,73 @@ function updateAuthNav(email, isAdmin){
   }
 }
 
-// Hides the chat's "having trouble?" note once the person has manually
-// dismissed it, for the rest of this browser session. Deliberately does
-// NOT tie this to our own site's sign-in state — being signed into the
-// Front Door (via Microsoft) is a separate system from whatever session
-// Checkbox itself needs to load Legal Larry correctly, so one doesn't
-// confirm the other.
-function updateChatFallbackNote(){
-  const note = document.getElementById('cpFallbackNote');
-  if (!note) return;
-  let dismissed = false;
-  try { dismissed = sessionStorage.getItem('chatFallbackDismissed') === '1'; } catch(e) {}
-  note.style.display = dismissed ? 'none' : '';
+// Chat iframe load detection — same pattern as the Checkbox modal overlay.
+// The iframe loads on page load (src is static), so we track state and apply
+// it whenever the panel is opened.
+var _chatState = 'loading'; // 'loading' | 'ready' | 'error'
+var _chatLoadTimer = null;
+var _chatTimeoutTimer = null;
+var _chatTimeoutStarted = false;
+
+function _chatShowOverlay(){
+  var el = document.getElementById('chat-loading');
+  el.classList.remove('hidden','error');
+  document.getElementById('chat-loading-label').textContent = 'Starting Legal Larry…';
 }
+function _chatShowError(){
+  var el = document.getElementById('chat-loading');
+  el.classList.remove('hidden');
+  el.classList.add('error');
+  document.getElementById('chat-loading-label').textContent = 'Having trouble loading?';
+}
+function _chatHideOverlay(){
+  document.getElementById('chat-loading').classList.add('hidden');
+}
+
+function chatRetry(){
+  _chatState = 'loading';
+  _chatTimeoutStarted = false;
+  _chatShowOverlay();
+  clearTimeout(_chatLoadTimer);
+  clearTimeout(_chatTimeoutTimer);
+  var frame = document.getElementById('chatFrame');
+  var src = frame.src;
+  frame.src = 'about:blank';
+  setTimeout(function(){ frame.src = src; }, 50);
+  _chatStartTimeout();
+}
+
+function _chatStartTimeout(){
+  if (_chatTimeoutStarted) return;
+  _chatTimeoutStarted = true;
+  _chatTimeoutTimer = setTimeout(function(){
+    if (_chatState !== 'ready') {
+      _chatState = 'error';
+      _chatShowError();
+    }
+  }, 12000);
+}
+
 document.addEventListener('DOMContentLoaded', function(){
-  const dismissBtn = document.getElementById('cpFallbackDismiss');
-  if (dismissBtn) {
-    dismissBtn.addEventListener('click', function(){
-      document.getElementById('cpFallbackNote').style.display = 'none';
-      try { sessionStorage.setItem('chatFallbackDismissed', '1'); } catch(e) {}
-    });
-  }
-  updateChatFallbackNote();
+  var frame = document.getElementById('chatFrame');
+  if (!frame) return;
+
+  frame.addEventListener('error', function(){
+    _chatState = 'error';
+    clearTimeout(_chatLoadTimer);
+    clearTimeout(_chatTimeoutTimer);
+    _chatShowError();
+  });
+
+  frame.addEventListener('load', function(){
+    // SPA: shell loads first, then renders. 1.8s buffer before revealing.
+    clearTimeout(_chatLoadTimer);
+    clearTimeout(_chatTimeoutTimer);
+    _chatLoadTimer = setTimeout(function(){
+      _chatState = 'ready';
+      _chatHideOverlay();
+    }, 1800);
+  });
 });
 
 async function signOutOfSite(){
@@ -1693,7 +1783,20 @@ const fabSug     = chatFab.querySelector('.fab-sug');
 chatFab.addEventListener('click',   () => chatWidget.classList.toggle('open'));
 chatClose.addEventListener('click', () => chatWidget.classList.remove('open'));
 document.addEventListener('keydown', e => { if(e.key === 'Escape') chatWidget.classList.remove('open'); });
-function toggleChat() { chatWidget.classList.toggle('open'); }
+function toggleChat() {
+  var opening = !chatWidget.classList.contains('open');
+  chatWidget.classList.toggle('open');
+  if (opening) {
+    if (_chatState === 'ready') {
+      _chatHideOverlay();
+    } else if (_chatState === 'error') {
+      _chatShowError();
+    } else {
+      _chatShowOverlay();
+      _chatStartTimeout();
+    }
+  }
+}
 
 /* rotating suggestions on the FAB */
 const fabPrompts = [
