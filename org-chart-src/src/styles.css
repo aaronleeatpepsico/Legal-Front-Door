@@ -54,6 +54,17 @@
 .oc2-card-selected { border-color: #02355A !important; box-shadow: 0 0 0 3px rgba(2,53,90,0.12), 0 8px 20px rgba(2,53,90,0.14) !important; }
 /* connection source card — glows blue to show it's the active manager */
 .oc2-card-connecting { border-color: #3680CE !important; border-top-color: #3680CE !important; box-shadow: 0 0 0 3px rgba(54,128,206,0.35), 0 8px 24px rgba(54,128,206,0.25) !important; }
+/* ── dimmed (non-matching search result) ── */
+.oc2-card-dimmed { opacity: 0.2; transition: opacity 0.2s; }
+.oc2-card-dimmed:hover { opacity: 0.5; }
+
+/* ── in-chart search box ── */
+.oc2-search-wrap { display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid rgba(2,53,90,0.15); border-radius: 10px; padding: 6px 10px; box-shadow: 0 4px 14px rgba(2,53,90,0.1); }
+.oc2-search-input { border: none; outline: none; font-family: 'Poppins', Arial, sans-serif; font-size: 12px; color: #02355A; width: 190px; background: transparent; }
+.oc2-search-input::placeholder { color: #b0c4d4; }
+.oc2-search-clear { background: none; border: none; cursor: pointer; color: #b0c4d4; font-size: 14px; line-height: 1; padding: 0; display: flex; align-items: center; }
+.oc2-search-clear:hover { color: #02355A; }
+
 /* ── search-from-homepage flash highlight ── */
 @keyframes oc2-flash { 0%,100%{box-shadow:0 4px 16px rgba(2,53,90,0.1);} 30%{box-shadow:0 0 0 10px rgba(54,128,206,0.3),0 8px 24px rgba(54,128,206,0.25);border-color:#3680CE;} 70%{box-shadow:0 0 0 6px rgba(54,128,206,0.12);border-color:#3680CE;} }
 .oc2-card-flashed { animation: oc2-flash 0.85s ease-in-out 3; border-color: #3680CE !important; }

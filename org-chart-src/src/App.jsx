@@ -5,6 +5,7 @@ import {
   applyEdgeChanges,
   Background, Controls, MiniMap,
   useReactFlow,
+  Panel,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { createClient } from '@supabase/supabase-js'
@@ -21,7 +22,7 @@ const edgeTypes = { orgEdge: OrgEdge }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-function peopleToNodes(people, isAdmin, handlers, connectionSourceId, flashPersonId) {
+function peopleToNodes(people, isAdmin, handlers, connectionSourceId, flashPersonId, matchedIds) {
   return people.map(p => ({
     id: p.id,
     type: 'orgPerson',
@@ -35,6 +36,7 @@ function peopleToNodes(people, isAdmin, handlers, connectionSourceId, flashPerso
       isAdmin,
       isConnectionSource: p.id === connectionSourceId,
       flashed: p.id === flashPersonId,
+      dimmed: matchedIds != null && !matchedIds.has(p.id),
       ...handlers,
     },
   }))
@@ -87,7 +89,21 @@ function OrgChart({ sb, editable, registerFocusPerson }) {
   const [selectMode, setSelectMode]   = useState(false)
   const [toast, setToast]             = useState(null)
   const [flashPersonId, setFlashPersonId] = useState(null)
+  const [searchQuery, setSearchQuery]     = useState('')
   const [selectedCount, setSelectedCount] = useState(0)
+
+  const matchedIds = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return null
+    const terms = q.split(/\s+/).filter(Boolean)
+    const matched = new Set()
+    people.forEach(p => {
+      const haystack = [p.name, p.role, p.department, p.location]
+        .filter(Boolean).join(' ').toLowerCase()
+      if (terms.every(t => haystack.includes(t))) matched.add(p.id)
+    })
+    return matched
+  }, [searchQuery, people])
   const [loading, setLoading]         = useState(true)
   const [loadError, setLoadError]     = useState(null)
   const toastTimer = useRef(null)
@@ -114,6 +130,15 @@ function OrgChart({ sb, editable, registerFocusPerson }) {
     const t = setTimeout(() => setFlashPersonId(null), 2500)
     return () => clearTimeout(t)
   }, [flashPersonId])
+
+  // Zoom to matched nodes when search results change
+  useEffect(() => {
+    if (!matchedIds || matchedIds.size === 0) return
+    const t = setTimeout(() => {
+      fitView({ nodes: [...matchedIds].map(id => ({ id })), duration: 500, padding: 0.3, maxZoom: 1.2 })
+    }, 80)
+    return () => clearTimeout(t)
+  }, [matchedIds, fitView])
 
   // ── auth ──────────────────────────────────────────────────────────────────
 
@@ -224,8 +249,8 @@ function OrgChart({ sb, editable, registerFocusPerson }) {
   // ── sync people → nodes/edges ─────────────────────────────────────────────
 
   useEffect(() => {
-    setNodes(peopleToNodes(people, isAdmin, stableNodeHandlers, connectionSource?.id, flashPersonId))
-  }, [people, isAdmin, stableNodeHandlers, setNodes, connectionSource, flashPersonId])
+    setNodes(peopleToNodes(people, isAdmin, stableNodeHandlers, connectionSource?.id, flashPersonId, matchedIds))
+  }, [people, isAdmin, stableNodeHandlers, setNodes, connectionSource, flashPersonId, matchedIds])
 
   useEffect(() => {
     setEdges(peopleToEdges(people, isAdmin, stableEdgeHandlers))
@@ -423,6 +448,23 @@ function OrgChart({ sb, editable, registerFocusPerson }) {
           maxZoom={2}
           proOptions={{ hideAttribution: true }}
         >
+          <Panel position="top-left">
+            <div className="oc2-search-wrap">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0, color: '#b0c4d4' }}>
+                <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M9 9l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              <input
+                className="oc2-search-input"
+                placeholder="Search by name, role, team…"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button className="oc2-search-clear" onClick={() => setSearchQuery('')} title="Clear">✕</button>
+              )}
+            </div>
+          </Panel>
           <Background variant="dots" gap={20} size={1} color="#c8d8e8" />
           <Controls showInteractive={false} />
           <MiniMap
