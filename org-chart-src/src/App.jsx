@@ -40,6 +40,8 @@ function peopleToEdges(people, isAdmin, edgeHandlers) {
         id: `solid-${p.id}`,
         source: p.manager_id,
         target: p.id,
+        sourceHandle: p.manager_source_handle || 's-bottom',
+        targetHandle: p.manager_target_handle || 't-left',
         type: 'orgEdge',
         data: { lineType: 'solid', isAdmin, ...edgeHandlers },
       })
@@ -49,6 +51,8 @@ function peopleToEdges(people, isAdmin, edgeHandlers) {
         id: `dotted-${p.id}`,
         source: p.dotted_manager_id,
         target: p.id,
+        sourceHandle: p.dotted_manager_source_handle || 's-bottom',
+        targetHandle: p.dotted_manager_target_handle || 't-left',
         type: 'orgEdge',
         data: { lineType: 'dotted', isAdmin, ...edgeHandlers },
       })
@@ -120,20 +124,24 @@ function OrgChart({ sb, editable }) {
   const edgeHandlersRef = useRef({})
   edgeHandlersRef.current = {
     onToggleType: async id => {
-      // id = 'solid-personId' or 'dotted-personId'
       const isDotted = id.startsWith('dotted-')
       const personId = id.replace(/^(solid|dotted)-/, '')
+      const person = people.find(p => p.id === personId)
       const payload = { updated_at: new Date().toISOString() }
       if (isDotted) {
-        // convert dotted → solid: clear dotted_manager_id, set manager_id
-        const person = people.find(p => p.id === personId)
-        payload.manager_id = person?.dotted_manager_id || null
-        payload.dotted_manager_id = null
+        payload.manager_id                  = person?.dotted_manager_id || null
+        payload.manager_source_handle       = person?.dotted_manager_source_handle || null
+        payload.manager_target_handle       = person?.dotted_manager_target_handle || null
+        payload.dotted_manager_id           = null
+        payload.dotted_manager_source_handle = null
+        payload.dotted_manager_target_handle = null
       } else {
-        // convert solid → dotted: move manager_id → dotted_manager_id
-        const person = people.find(p => p.id === personId)
-        payload.dotted_manager_id = person?.manager_id || null
-        payload.manager_id = null
+        payload.dotted_manager_id           = person?.manager_id || null
+        payload.dotted_manager_source_handle = person?.manager_source_handle || null
+        payload.dotted_manager_target_handle = person?.manager_target_handle || null
+        payload.manager_id                  = null
+        payload.manager_source_handle       = null
+        payload.manager_target_handle       = null
       }
       const { error } = await sb.from(TABLE).update(payload).eq('id', personId)
       if (error) { showToast('Could not toggle line type: ' + error.message); return }
@@ -144,8 +152,15 @@ function OrgChart({ sb, editable }) {
       const isDotted = id.startsWith('dotted-')
       const personId = id.replace(/^(solid|dotted)-/, '')
       const payload = { updated_at: new Date().toISOString() }
-      if (isDotted) payload.dotted_manager_id = null
-      else payload.manager_id = null
+      if (isDotted) {
+        payload.dotted_manager_id           = null
+        payload.dotted_manager_source_handle = null
+        payload.dotted_manager_target_handle = null
+      } else {
+        payload.manager_id            = null
+        payload.manager_source_handle = null
+        payload.manager_target_handle = null
+      }
       const { error } = await sb.from(TABLE).update(payload).eq('id', personId)
       if (error) { showToast('Could not remove line: ' + error.message); return }
       showToast('Line removed')
@@ -212,14 +227,19 @@ function OrgChart({ sb, editable }) {
 
   // ── connect ───────────────────────────────────────────────────────────────
 
-  const onConnect = useCallback(async ({ source, target }) => {
+  const onConnect = useCallback(async ({ source, target, sourceHandle, targetHandle }) => {
     if (!source || !target || source === target) return
     const type = connectType || 'solid'
-    const field = type === 'dotted' ? 'dotted_manager_id' : 'manager_id'
-    // source = manager, target = report
-    const { error } = await sb.from(TABLE).update({ [field]: source, updated_at: new Date().toISOString() }).eq('id', target)
+    const isD = type === 'dotted'
+    const patch = {
+      [isD ? 'dotted_manager_id'            : 'manager_id']:            source,
+      [isD ? 'dotted_manager_source_handle' : 'manager_source_handle']: sourceHandle || 's-bottom',
+      [isD ? 'dotted_manager_target_handle' : 'manager_target_handle']: targetHandle || 't-left',
+      updated_at: new Date().toISOString(),
+    }
+    const { error } = await sb.from(TABLE).update(patch).eq('id', target)
     if (error) { showToast('Could not save line: ' + error.message); return }
-    showToast(`${type === 'dotted' ? 'Dotted' : 'Solid'} line added`)
+    showToast(`${isD ? 'Dotted' : 'Solid'} line added`)
     await loadData()
   }, [sb, connectType, loadData, showToast])
 
@@ -297,6 +317,7 @@ function OrgChart({ sb, editable }) {
           onSelectionChange={onSelectionChange}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
+          connectionMode="loose"
           nodesDraggable={isAdmin && !selectMode}
           nodesConnectable={isAdmin && !selectMode}
           elementsSelectable={true}

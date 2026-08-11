@@ -74,8 +74,19 @@
   opacity: 0;
   transition: opacity 0.15s;
 }
+/* Offset source and target handles on the same side so they don't overlap */
+.react-flow__handle-top.oc2-handle    { transform: translateX(-8px) !important; }
+.react-flow__handle-top.oc2-handle ~ .react-flow__handle-top.oc2-handle { transform: translateX(8px) !important; }
+.react-flow__handle-bottom.oc2-handle { transform: translateX(-8px) !important; }
+.react-flow__handle-bottom.oc2-handle ~ .react-flow__handle-bottom.oc2-handle { transform: translateX(8px) !important; }
+.react-flow__handle-left.oc2-handle   { transform: translateY(-8px) !important; }
+.react-flow__handle-left.oc2-handle ~ .react-flow__handle-left.oc2-handle { transform: translateY(8px) !important; }
+.react-flow__handle-right.oc2-handle  { transform: translateY(-8px) !important; }
+.react-flow__handle-right.oc2-handle ~ .react-flow__handle-right.oc2-handle { transform: translateY(8px) !important; }
+
 .react-flow__node:hover .oc2-handle,
 .react-flow__node.selected .oc2-handle { opacity: 1; }
+.oc2-handle-hidden { opacity: 0 !important; pointer-events: none !important; }
 
 /* ── Edge label (delete / toggle buttons) ── */
 .oc2-edge-actions { display: flex; gap: 4px; background: #fff; border: 1px solid rgba(2,53,90,0.15); border-radius: 8px; padding: 4px; box-shadow: 0 4px 14px rgba(2,53,90,0.12); pointer-events: all; }
