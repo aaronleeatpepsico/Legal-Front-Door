@@ -388,7 +388,11 @@ function OrgChart({ sb, editable }) {
           nodesConnectable={isAdmin && !selectMode}
           elementsSelectable={true}
           selectionOnDrag={isAdmin && selectMode}
-          panOnDrag={!selectMode}
+          panOnDrag={editable && !selectMode}
+          zoomOnScroll={editable}
+          zoomOnPinch={editable}
+          zoomOnDoubleClick={editable}
+          panOnScroll={false}
           multiSelectionKeyCode="Shift"
           deleteKeyCode={null}
           defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
