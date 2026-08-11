@@ -1168,9 +1168,23 @@ header { padding: 8px 0; }
 #chat-fab:hover .fab-arrow{background:#3680CE;}
 
 @media(max-width:768px){
-  #chat-panel{width:calc(100vw - 20px);height:78vh;}
-  .chat-iframe{height:calc(78vh - 72px);}
-  #chat-fab{min-width:200px;max-width:calc(100vw - 48px);}
+  /* FAB: tighter to screen edge */
+  #chat-widget{right:12px;bottom:12px;}
+  #chat-fab{min-width:180px;max-width:calc(100vw - 48px);}
+
+  /* Panel open: cover the full screen so close button is always reachable */
+  #chat-widget.open{
+    top:0;right:0;bottom:0;left:0;
+    align-items:stretch;
+  }
+  #chat-widget.open #chat-panel{
+    width:100%;
+    height:100vh;
+    height:100dvh;
+    max-height:none;
+    border-radius:0;
+    margin-bottom:0;
+  }
 }
 </style>
 
