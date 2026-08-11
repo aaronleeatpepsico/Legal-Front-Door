@@ -1,9 +1,6 @@
 import React from 'react'
 import { Handle, Position } from '@xyflow/react'
-
-function initials(name) {
-  return (name || '').trim().split(/\s+/).slice(0, 2).map(p => p[0] || '').join('').toUpperCase()
-}
+import { initials } from './utils.js'
 
 const SIDES = [
   { id: 'top',    position: Position.Top    },

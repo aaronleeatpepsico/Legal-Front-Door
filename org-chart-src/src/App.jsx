@@ -512,11 +512,11 @@ function OrgChart({ sb, editable, registerFocusPerson }) {
 
 // ── exported App (wraps in provider) ─────────────────────────────────────────
 
-export default function App({ supabaseUrl, supabaseKey, editable = false }) {
+export default function App({ supabaseUrl, supabaseKey, editable = false, registerFocusPerson }) {
   const sb = useMemo(() => createClient(supabaseUrl, supabaseKey), [supabaseUrl, supabaseKey])
   return (
     <ReactFlowProvider>
-      <OrgChart sb={sb} editable={editable} />
+      <OrgChart sb={sb} editable={editable} registerFocusPerson={registerFocusPerson} />
     </ReactFlowProvider>
   )
 }

@@ -1,10 +1,7 @@
 import React, { useState, useCallback } from 'react'
+import { initials } from './utils.js'
 
 const BUCKET = 'org-photos'
-
-function initials(name) {
-  return (name || '').trim().split(/\s+/).slice(0, 2).map(p => p[0] || '').join('').toUpperCase()
-}
 
 function resizeImage(file, maxDim = 240) {
   return new Promise((resolve, reject) => {
