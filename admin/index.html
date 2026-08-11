@@ -211,10 +211,8 @@ table.analytics tr:last-child td{border-bottom:none;}
       <button class="tab-btn active" data-tab="content">Content</button>
       <button class="tab-btn" data-tab="documents">Documents</button>
       <button class="tab-btn" data-tab="orgchart">Org Chart</button>
-      <button class="tab-btn" data-tab="destinations">Destinations</button>
       <button class="tab-btn" data-tab="tools">Tools</button>
       <button class="tab-btn" data-tab="training">Training</button>
-      <button class="tab-btn" data-tab="cbtraining">Checkbox Training</button>
       <button class="tab-btn" data-tab="newsletter">Newsletter</button>
       <button class="tab-btn" data-tab="analytics">Analytics</button>
       <button class="tab-btn" data-tab="reports">Broken links</button>
@@ -254,14 +252,6 @@ table.analytics tr:last-child td{border-bottom:none;}
       <div id="adminOrgChartMount"></div>
     </div>
 
-    <div class="panel" id="panel-destinations">
-      <div class="section-title">Shared destinations</div>
-      <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px;max-width:560px;">
-        Editing a URL here updates it everywhere it's used — check the usage count before saving.
-        This list is built automatically from the URLs used across your links; you don't create these directly.
-      </p>
-      <div id="destinationsBody" class="empty-hint">Loading…</div>
-    </div>
 
     <div class="panel" id="panel-legalhub">
       <div class="section-title">Legal Hub Access</div>
@@ -309,10 +299,10 @@ table.analytics tr:last-child td{border-bottom:none;}
       </p>
       <div id="trainingBody" class="empty-hint">Loading…</div>
       <button class="btn btn-ghost btn-sm" id="addTrainingBtn" style="margin-top:12px;">+ Add training item</button>
-    </div>
 
-    <div class="panel" id="panel-cbtraining">
-      <div class="section-title">Checkbox App Training Materials</div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:28px 0 20px;">
+
+      <div class="section-title" style="font-size:15px;">Checkbox App Training Materials</div>
       <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px;max-width:620px;">
         Training videos and cheat-sheet PDFs per Checkbox app, shown as their own section on the public
         /training/ page. Upload files directly below — large videos may take a while.
@@ -602,10 +592,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (btn.dataset.tab === 'analytics') loadAnalytics();
     if (btn.dataset.tab === 'reports') loadReports();
     if (btn.dataset.tab === 'tools') loadToolsTab();
-    if (btn.dataset.tab === 'training') loadTrainingTab();
-    if (btn.dataset.tab === 'cbtraining') loadCbTrainingTab();
+    if (btn.dataset.tab === 'training') { loadTrainingTab(); loadCbTrainingTab(); }
     if (btn.dataset.tab === 'newsletter') loadNewsletterTab();
-    if (btn.dataset.tab === 'destinations') loadDestinationsTab();
     if (btn.dataset.tab === 'legalhub') loadLegalHubTab();
     if (btn.dataset.tab === 'admins') loadAdminsTab();
     if (btn.dataset.tab === 'documents') loadDocumentsTab();
@@ -1389,52 +1377,6 @@ document.getElementById('addAdminBtn').addEventListener('click', async () => {
   loadAdminsTab();
 });
 
-async function loadDestinationsTab(){
-  const body = document.getElementById('destinationsBody');
-  body.innerHTML = 'Loading…';
-  const [destRes, linksRes] = await Promise.all([
-    sb.from('destinations').select('*').order('url'),
-    sb.from('links').select('id,label,destination_id')
-  ]);
-  if (destRes.error) { body.innerHTML = 'Could not load destinations: ' + escHtml(destRes.error.message); return; }
-  const usage = {};
-  (linksRes.data || []).forEach(l => {
-    if (!l.destination_id) return;
-    (usage[l.destination_id] = usage[l.destination_id] || []).push(l.label);
-  });
-  const rows = destRes.data.map(d => ({ ...d, users: usage[d.id] || [] }))
-    .sort((a,b) => b.users.length - a.users.length);
-  if (!rows.length) { body.innerHTML = '<div class="empty-hint">No destinations yet — they\u2019re created automatically when you save a link with a URL.</div>'; return; }
-  body.innerHTML = rows.map(d =>
-    '<div class="editable-card" data-id="' + d.id + '">' +
-      '<div class="fields">' +
-        '<div style="grid-column:1/-1"><span class="field-label">URL' +
-          (d.users.length ? ' \u2014 used by ' + d.users.length + ' link' + (d.users.length===1?'':'s') + ' (' + escHtml(d.users.slice(0,4).join(', ')) + (d.users.length>4?', \u2026':'') + ')' : ' \u2014 unused') +
-        '</span><input class="f-desturl" value="' + escHtml(d.url) + '"></div>' +
-      '</div>' +
-      '<div class="row-actions"><button class="icon-btn" data-save title="Save (updates everywhere this is used)">\ud83d\udcbe</button>' +
-      (d.users.length === 0 ? '<button class="icon-btn" data-delete title="Delete unused destination">\ud83d\uddd1</button>' : '') +
-      '</div>' +
-    '</div>'
-  ).join('');
-  body.querySelectorAll('.editable-card').forEach(card => {
-    const id = card.dataset.id;
-    const usersCount = rows.find(r => r.id === id).users.length;
-    card.querySelector('[data-save]').addEventListener('click', async () => {
-      const newUrl = card.querySelector('.f-desturl').value.trim();
-      if (!newUrl) { flashRow(card, 'URL required'); return; }
-      if (usersCount > 1 && !confirm('This URL is used by ' + usersCount + ' links. Changing it here updates all of them. Continue?')) return;
-      const { error } = await sb.from('destinations').update({ url: newUrl, updated_at: new Date().toISOString() }).eq('id', id);
-      flashRow(card, error ? 'Error' : 'Saved');
-    });
-    const delBtn = card.querySelector('[data-delete]');
-    if (delBtn) delBtn.addEventListener('click', async () => {
-      if (!confirm('Delete this unused destination?')) return;
-      await sb.from('destinations').delete().eq('id', id);
-      loadDestinationsTab();
-    });
-  });
-}
 
 /* ── ANALYTICS ── */
 function barRowsHtml(rows){
