@@ -1388,7 +1388,8 @@ async function loadDocTree(subId) {
   container.innerHTML =
     '<div class="doc-tree-toolbar">' +
       '<button class="btn btn-ghost btn-sm" id="docAddFolderRoot">📁 New folder</button>' +
-      '<button class="btn btn-ghost btn-sm" id="docUploadFileRoot">↑ Upload file</button>' +
+      '<button class="btn btn-ghost btn-sm" id="docUploadFileRoot">↑ Upload files</button>' +
+      '<button class="btn btn-ghost btn-sm" id="docUploadFolderRoot">📂 Upload folder</button>' +
     '</div>' +
     '<div class="doc-tree" id="docTree">' + renderDocTreeHtml(docs, null) + '</div>';
   wireDocTree(docs, subId);
@@ -1442,7 +1443,8 @@ function renderDocTreeHtml(docs, parentId) {
         '<span class="doc-item-actions">' +
           (isFolder
             ? '<button class="icon-btn btn-sm" data-action="add-folder" data-id="' + doc.id + '" title="New subfolder">📁+</button>' +
-              '<button class="icon-btn btn-sm" data-action="upload" data-id="' + doc.id + '" title="Upload file here">↑</button>'
+              '<button class="icon-btn btn-sm" data-action="upload" data-id="' + doc.id + '" title="Upload files here">↑</button>' +
+              '<button class="icon-btn btn-sm" data-action="upload-folder" data-id="' + doc.id + '" title="Upload folder here">📂</button>'
             : '<button class="icon-btn btn-sm" data-action="preview" data-url="' + escHtml(pubUrl) + '" data-mime="' + escHtml(doc.mime_type || '') + '" data-name="' + escHtml(doc.name) + '" title="Preview">👁</button>' +
               '<a class="icon-btn btn-sm" href="' + escHtml(pubUrl) + '" download="' + escHtml(doc.name) + '" title="Download">↓</a>') +
           '<button class="icon-btn btn-sm" data-action="rename" data-id="' + doc.id + '" data-name="' + escHtml(doc.name) + '" title="Rename">✎</button>' +
@@ -1474,17 +1476,20 @@ function wireDocTree(docs, subId) {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const a = btn.dataset.action;
-      if (a === 'add-folder') createDocFolder(btn.dataset.id, subId);
-      if (a === 'upload')     uploadDocFile(btn.dataset.id, subId);
-      if (a === 'rename')     renameDocItem(btn.dataset.id, btn.dataset.name, subId);
-      if (a === 'delete')     deleteDocItem(btn.dataset.id, btn.dataset.type, btn.dataset.path, btn.dataset.name, subId);
-      if (a === 'preview')    openAdminDocPreview(btn.dataset.url, btn.dataset.mime, btn.dataset.name);
+      if (a === 'add-folder')    createDocFolder(btn.dataset.id, subId);
+      if (a === 'upload')        uploadDocFile(btn.dataset.id, subId);
+      if (a === 'upload-folder') uploadDocFolder(btn.dataset.id, subId);
+      if (a === 'rename')        renameDocItem(btn.dataset.id, btn.dataset.name, subId);
+      if (a === 'delete')        deleteDocItem(btn.dataset.id, btn.dataset.type, btn.dataset.path, btn.dataset.name, subId);
+      if (a === 'preview')       openAdminDocPreview(btn.dataset.url, btn.dataset.mime, btn.dataset.name);
     });
   });
-  const rootFolder = document.getElementById('docAddFolderRoot');
-  const rootUpload = document.getElementById('docUploadFileRoot');
-  if (rootFolder) rootFolder.addEventListener('click', () => createDocFolder(null, subId));
-  if (rootUpload) rootUpload.addEventListener('click', () => uploadDocFile(null, subId));
+  const rootFolder       = document.getElementById('docAddFolderRoot');
+  const rootUpload       = document.getElementById('docUploadFileRoot');
+  const rootUploadFolder = document.getElementById('docUploadFolderRoot');
+  if (rootFolder)       rootFolder.addEventListener('click',       () => createDocFolder(null, subId));
+  if (rootUpload)       rootUpload.addEventListener('click',       () => uploadDocFile(null, subId));
+  if (rootUploadFolder) rootUploadFolder.addEventListener('click', () => uploadDocFolder(null, subId));
 }
 
 async function createDocFolder(parentId, subId) {
@@ -1501,30 +1506,88 @@ async function createDocFolder(parentId, subId) {
 async function uploadDocFile(parentId, subId) {
   const input = document.createElement('input');
   input.type = 'file';
-  input.multiple = false;
+  input.multiple = true;
   input.onchange = async () => {
-    const file = input.files[0];
-    if (!file) return;
-    const safeExt = file.name.split('.').pop().replace(/[^a-zA-Z0-9]/g, '');
-    const storagePath = subId + '/' + Date.now() + '-' + Math.random().toString(36).slice(2) + (safeExt ? '.' + safeExt : '');
+    const files = Array.from(input.files);
+    if (!files.length) return;
     const container = document.getElementById('docTreeContainer');
-    const savedHtml = container.innerHTML;
-    container.innerHTML = '<div class="empty-hint">Uploading ' + escHtml(file.name) + '…</div>';
-    const { error: upErr } = await sb.storage.from('templates').upload(storagePath, file, {
-      contentType: file.type || 'application/octet-stream', upsert: false,
-    });
-    if (upErr) { container.innerHTML = savedHtml; wireDocTree(null, subId); alert('Upload failed: ' + upErr.message); return; }
-    const { error: dbErr } = await sb.from('documents').insert({
-      name: file.name, type: 'file',
-      subsection_id: subId, parent_id: parentId || null,
-      storage_path: storagePath, mime_type: file.type, size: file.size, sort_order: 0,
-    });
-    if (dbErr) {
-      await sb.storage.from('templates').remove([storagePath]);
-      container.innerHTML = savedHtml;
-      alert('Could not save file record: ' + dbErr.message);
-      return;
+    container.innerHTML = '<div class="empty-hint">Uploading ' + files.length + ' file' + (files.length > 1 ? 's' : '') + '…</div>';
+    let failed = 0;
+    for (const file of files) {
+      const safeExt = file.name.split('.').pop().replace(/[^a-zA-Z0-9]/g, '');
+      const storagePath = subId + '/' + Date.now() + '-' + Math.random().toString(36).slice(2) + (safeExt ? '.' + safeExt : '');
+      const { error: upErr } = await sb.storage.from('templates').upload(storagePath, file, {
+        contentType: file.type || 'application/octet-stream', upsert: false,
+      });
+      if (upErr) { failed++; continue; }
+      await sb.from('documents').insert({
+        name: file.name, type: 'file',
+        subsection_id: subId, parent_id: parentId || null,
+        storage_path: storagePath, mime_type: file.type, size: file.size, sort_order: 0,
+      });
     }
+    if (failed) alert(failed + ' file(s) failed to upload.');
+    loadDocTree(subId);
+  };
+  input.click();
+}
+
+async function uploadDocFolder(parentId, subId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.webkitdirectory = true;
+  input.multiple = true;
+  input.onchange = async () => {
+    const files = Array.from(input.files);
+    if (!files.length) return;
+    const container = document.getElementById('docTreeContainer');
+    container.innerHTML = '<div class="empty-hint">Importing folder — ' + files.length + ' files…</div>';
+
+    // Build the set of unique folder paths that need to exist in the DB,
+    // sorted shallowest-first so parents are always created before children.
+    const folderPaths = new Set();
+    files.forEach(f => {
+      const parts = f.webkitRelativePath.split('/');
+      for (let i = 1; i < parts.length; i++) {
+        folderPaths.add(parts.slice(0, i).join('/'));
+      }
+    });
+    const sortedFolderPaths = [...folderPaths].sort((a, b) =>
+      a.split('/').length - b.split('/').length || a.localeCompare(b)
+    );
+
+    // Create folder records and remember each path → DB id mapping.
+    const folderIdMap = {};
+    for (const folderPath of sortedFolderPaths) {
+      const parts = folderPath.split('/');
+      const name = parts[parts.length - 1];
+      const parentPath = parts.slice(0, -1).join('/');
+      const dbParentId = parentPath ? (folderIdMap[parentPath] || null) : (parentId || null);
+      const { data, error } = await sb.from('documents').insert({
+        name, type: 'folder', subsection_id: subId, parent_id: dbParentId, sort_order: 0,
+      }).select('id').single();
+      if (!error && data) folderIdMap[folderPath] = data.id;
+    }
+
+    // Upload each file into its correct parent folder.
+    let failed = 0;
+    for (const file of files) {
+      const parts = file.webkitRelativePath.split('/');
+      const folderPath = parts.slice(0, -1).join('/');
+      const dbParentId = folderIdMap[folderPath] || parentId || null;
+      const safeExt = file.name.split('.').pop().replace(/[^a-zA-Z0-9]/g, '');
+      const storagePath = subId + '/' + Date.now() + '-' + Math.random().toString(36).slice(2) + (safeExt ? '.' + safeExt : '');
+      const { error: upErr } = await sb.storage.from('templates').upload(storagePath, file, {
+        contentType: file.type || 'application/octet-stream', upsert: false,
+      });
+      if (upErr) { failed++; continue; }
+      await sb.from('documents').insert({
+        name: file.name, type: 'file',
+        subsection_id: subId, parent_id: dbParentId,
+        storage_path: storagePath, mime_type: file.type, size: file.size, sort_order: 0,
+      });
+    }
+    if (failed) alert(failed + ' file(s) failed to upload.');
     loadDocTree(subId);
   };
   input.click();
