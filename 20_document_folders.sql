@@ -155,11 +155,19 @@ drop policy if exists "document_folders_admin_insert" on public.document_folders
 drop policy if exists "document_folders_admin_update" on public.document_folders;
 drop policy if exists "document_folders_admin_delete" on public.document_folders;
 
+-- Mirror the caller's existing subsection visibility. This means a folder name
+-- cannot reveal content from a subsection that the current user cannot select.
 create policy "document_folders_public_read"
 on public.document_folders
 for select
 to anon, authenticated
-using (true);
+using (
+  exists (
+    select 1
+    from public.subsections s
+    where s.id = document_folders.subsection_id
+  )
+);
 
 create policy "document_folders_admin_insert"
 on public.document_folders
