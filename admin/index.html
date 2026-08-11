@@ -314,7 +314,7 @@ table.analytics tr:last-child td{border-bottom:none;}
 const SUPABASE_URL = 'https://pweqaibadpahfprqhjdg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_SumS4TPFIvwTvjk1VdYiwQ_LjVEDQ7l';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true }
+  auth: { persistSession: true, autoRefreshToken: true, flowType: 'pkce' }
 });
 
 function escHtml(s){ if(s===null||s===undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
