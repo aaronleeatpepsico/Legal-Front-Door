@@ -2,7 +2,7 @@ import React from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { layoutTree } from './layout.js'
 
-export default function Toolbar({ connectType, setConnectType, selectMode, setSelectMode, people, sb, onAddPerson, onDeleteSelected, selectedCount, loadData, showToast }) {
+export default function Toolbar({ connectType, setConnectType, connectionSource, setConnectionSource, selectMode, setSelectMode, people, sb, onAddPerson, onDeleteSelected, selectedCount, loadData, showToast }) {
   const { fitView, setNodes } = useReactFlow()
 
   const handleAutoArrange = async () => {
@@ -66,12 +66,20 @@ export default function Toolbar({ connectType, setConnectType, selectMode, setSe
         </button>
       )}
 
+      {connectionSource && (
+        <button className="oc2-btn oc2-btn-danger oc2-btn-sm" onClick={() => setConnectionSource(null)}>
+          ✕ Cancel
+        </button>
+      )}
+
       <span className="oc2-toolbar-status">
         {selectMode
           ? 'Drag on canvas to select multiple cards · Shift+click to add/remove'
-          : connectType
-            ? `Drawing ${connectType} lines — drag from a card's bottom handle to another card`
-            : 'Drag cards to arrange · Shift+click to select multiple'}
+          : connectionSource
+            ? `Drawing from "${connectionSource.name}" — click any card to connect · click "${connectionSource.name}" to cancel`
+            : connectType
+              ? `Click a card to start drawing a ${connectType} line`
+              : 'Drag cards to arrange · click a card for details'}
       </span>
     </div>
   )

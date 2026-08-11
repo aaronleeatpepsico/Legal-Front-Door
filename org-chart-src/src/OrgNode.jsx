@@ -13,11 +13,11 @@ const SIDES = [
 ]
 
 export default function OrgNode({ id, data, selected }) {
-  const { name, role, department, location, photo_url, team_color, isAdmin } = data
+  const { name, role, department, location, photo_url, team_color, isAdmin, isConnectionSource } = data
 
   return (
     <div
-      className={`oc2-card${selected ? ' oc2-card-selected' : ''}`}
+      className={`oc2-card${selected ? ' oc2-card-selected' : ''}${isConnectionSource ? ' oc2-card-connecting' : ''}`}
       style={{ '--oc2-accent': team_color || undefined }}
     >
       {SIDES.map(({ id: hid, position }) => (

@@ -21,7 +21,7 @@ const edgeTypes = { orgEdge: OrgEdge }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-function peopleToNodes(people, isAdmin, handlers) {
+function peopleToNodes(people, isAdmin, handlers, connectionSourceId) {
   return people.map(p => ({
     id: p.id,
     type: 'orgPerson',
@@ -30,7 +30,7 @@ function peopleToNodes(people, isAdmin, handlers) {
       y: p.position_y != null ? p.position_y : 0,
     },
     style: { width: 180 },
-    data: { ...p, isAdmin, ...handlers },
+    data: { ...p, isAdmin, isConnectionSource: p.id === connectionSourceId, ...handlers },
   }))
 }
 
@@ -77,6 +77,7 @@ function OrgChart({ sb, editable }) {
   const [modal, setModal]             = useState(null)  // { mode, seed }
   const [cardDetail, setCardDetail]   = useState(null)  // person object for detail modal
   const [connectType, setConnectType] = useState(null)  // 'solid' | 'dotted' | null
+  const [connectionSource, setConnectionSource] = useState(null) // { id, name } first card clicked when drawing
   const [selectMode, setSelectMode]   = useState(false)
   const [toast, setToast]             = useState(null)
   const [selectedCount, setSelectedCount] = useState(0)
@@ -200,9 +201,15 @@ function OrgChart({ sb, editable }) {
   // ── sync people → nodes/edges ─────────────────────────────────────────────
 
   useEffect(() => {
-    setNodes(peopleToNodes(people, isAdmin, stableNodeHandlers))
+    setNodes(peopleToNodes(people, isAdmin, stableNodeHandlers, connectionSource?.id))
+  }, [people, isAdmin, stableNodeHandlers, setNodes, connectionSource])
+
+  useEffect(() => {
     setEdges(peopleToEdges(people, isAdmin, stableEdgeHandlers))
-  }, [people, isAdmin, stableNodeHandlers, stableEdgeHandlers, setNodes, setEdges])
+  }, [people, isAdmin, stableEdgeHandlers, setEdges])
+
+  // Clear connection source when line-drawing mode is turned off
+  useEffect(() => { if (!connectType) setConnectionSource(null) }, [connectType])
 
   // fit view after first data load — wait for ReactFlow to finish measuring its container
   const fittedRef = useRef(false)
@@ -224,13 +231,52 @@ function OrgChart({ sb, editable }) {
     }).eq('id', node.id)
   }, [sb])
 
-  // ── card detail modal ─────────────────────────────────────────────────────
+  // ── click-to-connect + card detail modal ──────────────────────────────────
 
-  const onNodeClick = useCallback((_, node) => {
+  const onNodeClick = useCallback(async (_, node) => {
     if (selectMode) return
+
+    if (connectType) {
+      // First click: set as connection source (stays set until user cancels)
+      if (!connectionSource) {
+        const person = people.find(p => p.id === node.id)
+        setConnectionSource({ id: node.id, name: person?.name || node.id })
+        return
+      }
+      // Click same card: cancel
+      if (connectionSource.id === node.id) {
+        setConnectionSource(null)
+        return
+      }
+      // Click different card: draw line (source = manager, target = this card)
+      const src = connectionSource.id
+      const tgt = node.id
+      const isD = connectType === 'dotted'
+      const patch = {
+        [isD ? 'dotted_manager_id' : 'manager_id']: src,
+        updated_at: new Date().toISOString(),
+      }
+      const withHandles = {
+        ...patch,
+        [isD ? 'dotted_manager_source_handle' : 'manager_source_handle']: 'bottom',
+        [isD ? 'dotted_manager_target_handle' : 'manager_target_handle']: 'top',
+      }
+      let { error } = await sb.from(TABLE).update(withHandles).eq('id', tgt)
+      if (error?.message?.includes('schema cache') || error?.message?.includes('column')) {
+        const res = await sb.from(TABLE).update(patch).eq('id', tgt)
+        error = res.error
+      }
+      if (error) { showToast('Could not save line: ' + error.message); return }
+      showToast(`${isD ? 'Dotted' : 'Solid'} line added — click another card or click "${connectionSource.name}" to cancel`)
+      await loadData()
+      // Keep connectionSource set so user can connect same manager to multiple reports
+      return
+    }
+
+    // Normal mode: open detail modal
     const person = people.find(p => p.id === node.id)
     if (person) setCardDetail(person)
-  }, [selectMode, people])
+  }, [selectMode, connectType, connectionSource, people, sb, loadData, showToast])
 
   // ── connect ───────────────────────────────────────────────────────────────
 
@@ -293,6 +339,8 @@ function OrgChart({ sb, editable }) {
         <Toolbar
           connectType={connectType}
           setConnectType={setConnectType}
+          connectionSource={connectionSource}
+          setConnectionSource={setConnectionSource}
           selectMode={selectMode}
           setSelectMode={setSelectMode}
           people={people}

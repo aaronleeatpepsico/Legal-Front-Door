@@ -52,6 +52,8 @@
 
 /* selected node ring — add to .react-flow__node when selected */
 .oc2-card-selected { border-color: #02355A !important; box-shadow: 0 0 0 3px rgba(2,53,90,0.12), 0 8px 20px rgba(2,53,90,0.14) !important; }
+/* connection source card — glows blue to show it's the active manager */
+.oc2-card-connecting { border-color: #3680CE !important; border-top-color: #3680CE !important; box-shadow: 0 0 0 3px rgba(54,128,206,0.35), 0 8px 24px rgba(54,128,206,0.25) !important; }
 
 /* action bar shown on selected */
 .oc2-actions { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(2,53,90,0.08); }
