@@ -12,7 +12,8 @@ export default function OrgEdge({
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX, sourceY, sourcePosition,
     targetX, targetY, targetPosition,
-    borderRadius: 10,
+    borderRadius: 8,
+    offset: 20,
   })
 
   const stroke      = isDotted ? '#6f8fab' : '#8ca9c1'

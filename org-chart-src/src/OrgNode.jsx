@@ -13,7 +13,7 @@ export default function OrgNode({ id, data, selected }) {
       className={`oc2-card${selected ? ' oc2-card-selected' : ''}`}
       style={{ '--oc2-accent': team_color || undefined }}
     >
-      <Handle type="target" position={Position.Top} className="oc2-handle" />
+      <Handle type="target" position={Position.Left} className="oc2-handle" />
 
       <div className="oc2-card-body">
         {photo_url

@@ -304,7 +304,7 @@ function OrgChart({ sb, editable }) {
           panOnDrag={!selectMode}
           multiSelectionKeyCode="Shift"
           deleteKeyCode={null}
-          defaultViewport={{ x: 0, y: 0, zoom: 0.7 }}
+          defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
           minZoom={0.15}
           maxZoom={2}
           proOptions={{ hideAttribution: true }}

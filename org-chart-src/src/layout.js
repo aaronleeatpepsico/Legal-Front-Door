@@ -1,83 +1,59 @@
-// Auto-arrange algorithm — produces { [id]: { x, y } } positions.
-// Mirrors the compact executive-chart layout from the original widget.
+// Recursive top-down org chart layout.
+// Each node is centred above its children; siblings spread horizontally.
+// Returns { [id]: { x, y } } using React Flow's top-left coordinate system.
 
 const NODE_W = 180
 const NODE_H = 80
-const V_GAP  = 20
-const LANE_GAP  = 12
-const GROUP_GAP = 28
-const MAX_LANE_ROWS = 6
-const SIDE_PAD  = 32
-const TOP_PAD   = 32
-const ROW_STEP  = NODE_H + V_GAP
+const H_GAP  = 24   // horizontal gap between sibling subtrees
+const V_GAP  = 60   // vertical gap between levels
+const PAD    = 40   // canvas padding
 
-function flatten(node, out) {
-  out.push(node)
-  node.children.forEach(c => flatten(c, out))
-  return out
+function subtreeW(node) {
+  if (!node.children.length) return NODE_W
+  const inner = node.children.reduce((s, c) => s + subtreeW(c), 0)
+    + H_GAP * (node.children.length - 1)
+  return Math.max(NODE_W, inner)
 }
 
-export function layoutTree(rows) {
-  const byId = {}
-  rows.forEach(r => { byId[r.id] = { ...r, children: [] } })
-  const roots = []
-  rows.forEach(r => {
-    if (r.manager_id && byId[r.manager_id]) byId[r.manager_id].children.push(byId[r.id])
-    else roots.push(byId[r.id])
+function place(node, left, y, pos) {
+  const sw = subtreeW(node)
+  pos[node.id] = { x: left + (sw - NODE_W) / 2, y }
+  if (!node.children.length) return
+  let cx = left
+  node.children.forEach(child => {
+    const csw = subtreeW(child)
+    place(child, cx, y + NODE_H + V_GAP, pos)
+    cx += csw + H_GAP
   })
+}
+
+function treeSize(node) {
+  return 1 + node.children.reduce((s, c) => s + treeSize(c), 0)
+}
+
+export function layoutTree(people) {
+  const byId = {}
+  people.forEach(p => { byId[p.id] = { ...p, children: [] } })
+  people.forEach(p => {
+    if (p.manager_id && byId[p.manager_id]) byId[p.manager_id].children.push(byId[p.id])
+  })
+
+  // Sort children by sort_order so the visual order matches the data order
+  Object.values(byId).forEach(n => n.children.sort((a, b) => a.sort_order - b.sort_order))
+
+  const roots = people
+    .filter(p => !p.manager_id || !byId[p.manager_id])
+    .map(p => byId[p.id])
+    .sort((a, b) => treeSize(b) - treeSize(a))
+
   if (!roots.length) return {}
 
-  const ROOT_Y   = TOP_PAD + NODE_H / 2
-  const BRANCH_Y = ROOT_Y + 160
-
-  const executive = roots.slice().sort((a, b) => b.children.length - a.children.length)[0]
-  const topChildren = executive
-    ? executive.children.slice().concat(roots.filter(r => r.id !== executive.id))
-    : roots.slice()
-  const assistants = executive
-    ? topChildren.filter(n => /executive assistant/i.test(n.role || ''))
-    : []
-  const branches = topChildren.filter(n => !assistants.includes(n))
-
-  const groups = branches.map(branch => {
-    const directSubtrees = branch.children.map(c => flatten(c, []))
-    const descendantCount = directSubtrees.reduce((s, l) => s + l.length, 0)
-    const laneCount = Math.max(1, Math.ceil(descendantCount / MAX_LANE_ROWS))
-    const lanes = Array.from({ length: laneCount }, () => [])
-    if (laneCount > 1) directSubtrees.sort((a, b) => b.length - a.length)
-    directSubtrees.forEach(subtree => {
-      let li = 0
-      for (let i = 1; i < lanes.length; i++) {
-        if (lanes[i].length < lanes[li].length) li = i
-      }
-      lanes[li].push(...subtree)
-    })
-    return { branch, lanes, width: laneCount * NODE_W + (laneCount - 1) * LANE_GAP }
+  const pos = {}
+  let cx = PAD
+  roots.forEach(root => {
+    const sw = subtreeW(root)
+    place(root, cx, PAD, pos)
+    cx += sw + H_GAP * 4
   })
-
-  const groupsWidth = groups.reduce((s, g, i) => s + g.width + (i > 0 ? GROUP_GAP : 0), 0)
-  const totalWidth  = Math.max(700, groupsWidth + SIDE_PAD * 2)
-  let cursor = (totalWidth - groupsWidth) / 2
-  const positions = {}
-
-  groups.forEach(group => {
-    positions[group.branch.id] = { x: cursor + group.width / 2, y: BRANCH_Y }
-    group.lanes.forEach((lane, li) => {
-      const lx = cursor + li * (NODE_W + LANE_GAP) + NODE_W / 2
-      lane.forEach((node, ri) => {
-        positions[node.id] = { x: lx, y: BRANCH_Y + (ri + 1) * ROW_STEP }
-      })
-    })
-    cursor += group.width + GROUP_GAP
-  })
-
-  if (executive) {
-    positions[executive.id] = { x: totalWidth / 2, y: ROOT_Y }
-    assistants.forEach((a, i) => {
-      const offset = (i - (assistants.length - 1) / 2) * (NODE_W + LANE_GAP)
-      positions[a.id] = { x: totalWidth / 2 + offset, y: ROOT_Y + 100 }
-    })
-  }
-
-  return positions
+  return pos
 }
