@@ -1926,24 +1926,43 @@ frame();
 .fb-placeholder-title{font-family:var(--font-head);font-weight:500;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:var(--pep-navy);margin-bottom:8px;}
 .fb-placeholder-desc{font-size:12px;font-weight:300;max-width:340px;line-height:1.6;}
 
-/* Checkbox iframe loading overlay */
+/* Checkbox iframe loading / error overlay */
 #cbo-loading{
   position:absolute;inset:0;z-index:10;
   background:#f5f7fa;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
   border-radius:0 0 18px 18px;
-  opacity:1;transition:opacity 0.35s ease;
+  opacity:1;transition:opacity 0.4s ease;
   pointer-events:none;
+  text-align:center;padding:40px;
 }
-#cbo-loading.hidden{opacity:0;}
+#cbo-loading.hidden{opacity:0;pointer-events:none;}
+#cbo-loading.error{pointer-events:all;}
 #cbo-loading-spinner{
   width:36px;height:36px;border-radius:50%;
   border:3px solid rgba(2,53,90,0.12);
   border-top-color:var(--pep-blue);
   animation:cbo-spin 0.8s linear infinite;
+  flex-shrink:0;
 }
+#cbo-loading.error #cbo-loading-spinner{display:none;}
 @keyframes cbo-spin{to{transform:rotate(360deg);}}
-#cbo-loading-label{font-size:13px;font-weight:500;color:var(--text-muted);letter-spacing:0.01em;}
+#cbo-loading-label{font-size:14px;font-weight:500;color:var(--text-primary);letter-spacing:0.01em;line-height:1.4;}
+#cbo-loading-sub{font-size:12.5px;color:var(--text-muted);max-width:320px;line-height:1.6;display:none;}
+#cbo-loading.error #cbo-loading-sub{display:block;}
+.cbo-error-icon{display:none;width:48px;height:48px;border-radius:50%;background:rgba(2,53,90,0.07);align-items:center;justify-content:center;margin-bottom:4px;}
+#cbo-loading.error .cbo-error-icon{display:flex;}
+#cbo-loading-actions{display:none;gap:10px;margin-top:6px;}
+#cbo-loading.error #cbo-loading-actions{display:flex;}
+.cbo-action-btn{
+  padding:9px 18px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;
+  border:1.5px solid var(--pep-blue);font-family:var(--font-body);
+  transition:background 0.15s,color 0.15s;
+}
+.cbo-action-btn-primary{background:var(--pep-blue);color:#fff;}
+.cbo-action-btn-primary:hover{background:var(--pep-blue-mid);}
+.cbo-action-btn-ghost{background:transparent;color:var(--pep-blue);}
+.cbo-action-btn-ghost:hover{background:rgba(54,128,206,0.08);}
 </style>
 
 <div id="cbo" onclick="if(event.target===this)closeCheckboxModal()">
@@ -1962,8 +1981,16 @@ frame();
     </div>
     <div class="fbb" style="position:relative;">
       <div id="cbo-loading">
+        <div class="cbo-error-icon">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="9" stroke="#02355A" stroke-width="1.8"/><path d="M11 7v5" stroke="#02355A" stroke-width="1.8" stroke-linecap="round"/><circle cx="11" cy="15.5" r="1" fill="#02355A"/></svg>
+        </div>
         <div id="cbo-loading-spinner"></div>
         <div id="cbo-loading-label">Opening…</div>
+        <div id="cbo-loading-sub">Sign into Checkbox first, then come back and try again. If you're already signed in, the form may be taking a moment to load.</div>
+        <div id="cbo-loading-actions">
+          <a id="cbo-signin-btn" href="https://pepsico.checkbox.ai/login" target="_blank" rel="noopener" class="cbo-action-btn cbo-action-btn-primary">Sign into Checkbox ↗</a>
+          <button class="cbo-action-btn cbo-action-btn-ghost" onclick="cboRetry()">Try again</button>
+        </div>
       </div>
       <iframe id="cboFrame" src="about:blank" frameborder="0" allowfullscreen webkitallowfullscreen mozallowfullscreen msallowfullscreen title="Checkbox form"></iframe>
     </div>
@@ -2031,30 +2058,74 @@ function openFeedbackModal(){document.getElementById('fbo').classList.add('open'
 function closeFeedbackModal(){document.getElementById('fbo').classList.remove('open');document.body.style.overflow='';}
 function closeOrgModal(){document.getElementById('omo').classList.remove('open');document.body.style.overflow='';}
 var _cboLoadTimer = null;
-function openCheckboxModal(url, title){
+var _cboTimeoutTimer = null;
+var _cboCurrentUrl = '';
+
+function _cboShowError(){
+  var loading = document.getElementById('cbo-loading');
+  loading.classList.remove('hidden');
+  loading.classList.add('error');
+  document.getElementById('cbo-loading-label').textContent = 'Having trouble opening this form?';
+}
+
+function cboRetry(){
+  var loading = document.getElementById('cbo-loading');
+  loading.classList.remove('error');
+  loading.classList.remove('hidden');
+  document.getElementById('cbo-loading-label').textContent = 'Opening…';
+  _cboStartLoad(_cboCurrentUrl);
+}
+
+function _cboStartLoad(url){
   var loading = document.getElementById('cbo-loading');
   var frame   = document.getElementById('cboFrame');
-  // Show overlay before setting src so the flash is never visible
-  loading.classList.remove('hidden');
   clearTimeout(_cboLoadTimer);
+  clearTimeout(_cboTimeoutTimer);
+
+  frame.onerror = function(){ _cboShowError(); };
+
   frame.onload = function(){
-    // Checkbox is a SPA — the first load event fires on the shell, then JS
-    // renders the form. Give it 1.8 s after load to finish rendering before
-    // fading the overlay away.
+    // Checkbox is a SPA: first load fires on the shell, JS then renders the
+    // form. 1.8 s buffer lets it finish before we reveal it.
     clearTimeout(_cboLoadTimer);
-    _cboLoadTimer = setTimeout(function(){ loading.classList.add('hidden'); }, 1800);
+    clearTimeout(_cboTimeoutTimer);
+    _cboLoadTimer = setTimeout(function(){
+      loading.classList.add('hidden');
+      loading.classList.remove('error');
+    }, 1800);
   };
+
+  // If the iframe hasn't fired load + 1.8 s within 12 s total, assume login
+  // is required or the app is unreachable.
+  _cboTimeoutTimer = setTimeout(function(){
+    _cboShowError();
+  }, 12000);
+
   frame.src = url;
+}
+
+function openCheckboxModal(url, title){
+  var loading = document.getElementById('cbo-loading');
+  _cboCurrentUrl = url;
+  // Reset to loading state before showing
+  loading.classList.remove('hidden','error');
+  document.getElementById('cbo-loading-label').textContent = 'Opening…';
   document.getElementById('cboTitle').textContent = title || 'Checkbox';
   document.getElementById('cboOpenTab').href = url;
   document.getElementById('cbo').classList.add('open');
   document.body.style.overflow = 'hidden';
+  _cboStartLoad(url);
 }
+
 function closeCheckboxModal(){
   document.getElementById('cbo').classList.remove('open');
   document.body.style.overflow = '';
   clearTimeout(_cboLoadTimer);
-  document.getElementById('cboFrame').src = 'about:blank';
+  clearTimeout(_cboTimeoutTimer);
+  var frame = document.getElementById('cboFrame');
+  frame.onload = null;
+  frame.onerror = null;
+  frame.src = 'about:blank';
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeOrgModal();closeFeedbackModal();closeCheckboxModal();}});
 </script>
