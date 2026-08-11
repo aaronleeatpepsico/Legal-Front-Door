@@ -329,6 +329,7 @@ function OrgChart({ sb, editable }) {
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           connectionMode="loose"
+          reconnectRadius={0}
           onNodeClick={onNodeClick}
           nodesDraggable={isAdmin && !selectMode}
           nodesConnectable={isAdmin && !selectMode}
