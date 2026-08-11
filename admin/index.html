@@ -87,7 +87,7 @@ main{max-width:1500px;margin:0 auto;padding:32px 24px 64px;}
 .icon-picker-current{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:6px;background:#fff;flex-shrink:0;}
 .icon-picker-current img{width:22px;height:22px;object-fit:contain;}
 .icon-picker-current .icon{width:18px;height:18px;}
-.icon-picker-panel{background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px;box-shadow:0 6px 20px rgba(0,0,0,.13);width:310px;}
+.icon-picker-panel{background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px;box-shadow:0 6px 20px rgba(0,0,0,.13);width:310px;max-height:80vh;overflow-y:auto;}
 .ip-lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:6px;}
 .ip-lbl+.ip-lbl,.ip-upload-row{margin-top:10px;}
 .ip-grid{display:flex;flex-wrap:wrap;gap:4px;}
@@ -452,12 +452,18 @@ function wireIconPicker(pickerWrap){
     e.stopPropagation();
     if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
     // Use fixed positioning so overflow:hidden on ancestor rows/blocks can't clip the panel
-    const rect = e.currentTarget.getBoundingClientRect();
+    // Move to <body> so no ancestor overflow/transform can clip the panel
+    document.body.appendChild(panel);
     panel.style.position = 'fixed';
-    panel.style.top = (rect.bottom + 4) + 'px';
-    panel.style.left = rect.left + 'px';
     panel.style.zIndex = '9999';
     panel.style.display = 'block';
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ph = panel.offsetHeight;
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    panel.style.top = spaceBelow >= ph
+      ? (rect.bottom + 4) + 'px'
+      : Math.max(8, rect.top - ph - 4) + 'px';
+    panel.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 318)) + 'px';
   });
 
   pickerWrap.querySelectorAll('.ip-btn').forEach(btn => {
