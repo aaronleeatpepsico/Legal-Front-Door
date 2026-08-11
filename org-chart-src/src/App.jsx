@@ -66,6 +66,7 @@ function OrgChart({ sb, editable }) {
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [modal, setModal]             = useState(null)  // { mode, seed }
   const [connectType, setConnectType] = useState(null)  // 'solid' | 'dotted' | null
+  const [selectMode, setSelectMode]   = useState(false)
   const [toast, setToast]             = useState(null)
   const [selectedCount, setSelectedCount] = useState(0)
   const [loading, setLoading]         = useState(true)
@@ -256,6 +257,8 @@ function OrgChart({ sb, editable }) {
         <Toolbar
           connectType={connectType}
           setConnectType={setConnectType}
+          selectMode={selectMode}
+          setSelectMode={setSelectMode}
           people={people}
           sb={sb}
           onAddPerson={() => setModal({ mode: 'add', seed: {} })}
@@ -294,9 +297,12 @@ function OrgChart({ sb, editable }) {
           onSelectionChange={onSelectionChange}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
-          nodesDraggable={isAdmin}
-          nodesConnectable={isAdmin}
+          nodesDraggable={isAdmin && !selectMode}
+          nodesConnectable={isAdmin && !selectMode}
           elementsSelectable={isAdmin}
+          selectionOnDrag={isAdmin && selectMode}
+          panOnDrag={!selectMode}
+          multiSelectionKeyCode="Shift"
           deleteKeyCode={null}
           defaultViewport={{ x: 0, y: 0, zoom: 0.7 }}
           minZoom={0.15}
