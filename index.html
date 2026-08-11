@@ -703,6 +703,18 @@ nav a:hover { background: rgba(255,255,255,0.18); color: #fff; border-color: rgb
 .fd-preview-title { flex: 1; font-size: 14px; font-weight: 600; color: var(--pep-navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fd-preview-frame { flex: 1; border: none; width: 100%; background: #f0f0f0; }
 
+/* ── SITE LOGIN GATE ── */
+#site-login-gate { position: fixed; inset: 0; z-index: 99999; background: var(--pep-navy); display: flex; align-items: center; justify-content: center; }
+.slg-card { background: #fff; border-radius: 20px; padding: 44px 40px 36px; width: 360px; max-width: 90vw; box-shadow: 0 32px 96px rgba(0,0,0,0.35); text-align: center; }
+.slg-logo { width: 64px; height: 64px; border-radius: 14px; margin: 0 auto 20px; display: block; }
+.slg-title { font-size: 16px; font-weight: 700; color: var(--pep-navy); margin-bottom: 6px; }
+.slg-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; line-height: 1.5; }
+.slg-btn { width: 100%; padding: 13px 20px; border: none; border-radius: 100px; background: var(--pep-navy); color: #fff; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background 0.15s; }
+.slg-btn:hover { background: #04487a; }
+.slg-btn:disabled { opacity: 0.6; cursor: default; }
+.slg-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+.slg-error { margin-top: 14px; font-size: 12.5px; color: #b02020; min-height: 16px; }
+
 .legal-hub-gate { padding: 20px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: #f5f8fb; }
 .legal-hub-gate p { margin: 0 0 12px; font-size: 13.5px; color: var(--pep-navy); }
 .legal-hub-gate-btn { padding: 10px 18px; border: none; border-radius: 100px; background: var(--pep-blue); color: #fff; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
@@ -824,6 +836,23 @@ header { padding: 8px 0; }
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
+<!-- Full-site login gate — hidden once a valid Azure session is confirmed -->
+<div id="site-login-gate">
+  <div class="slg-card">
+    <img class="slg-logo" src="/apple-touch-icon.png" alt="PepsiCo Legal">
+    <div class="slg-title">APAC Legal Front Door</div>
+    <p class="slg-sub">Sign in with your PepsiCo Microsoft account to access the site.</p>
+    <button class="slg-btn" id="slgSignInBtn">
+      <svg viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+        <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+      </svg>
+      Sign in with Microsoft
+    </button>
+    <div class="slg-error" id="slgError"></div>
+  </div>
+</div>
+
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol><symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M9.5 12.5h5M9.5 15.5h5M9.5 9.5h2"/></symbol><symbol id="i-scale" viewBox="0 0 24 24"><path d="M12 3v18M8 21h8M12 3l-6 3M12 3l6 3M3 8l3 6 3-6M15 8l3 6 3-6M3 8h6M15 8h6"/></symbol><symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol><symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol><symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4V5z"/></symbol><symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></symbol><symbol id="i-clip" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2.5" width="6" height="3" rx="1"/></symbol><symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19l-4 1z"/><path d="M14 7l3 3"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></symbol><symbol id="i-gift" viewBox="0 0 24 24"><rect x="4" y="9" width="16" height="11" rx="1"/><path d="M4 9h16v4H4z"/><path d="M12 9v11M12 9c-1-3-5-3-5-1s2 1 5 1M12 9c1-3 5-3 5-1s-2 1-5 1"/></symbol><symbol id="i-ticket" viewBox="0 0 24 24"><path d="M4 8a2 2 0 0 1 0-4h16a2 2 0 0 1 0 4 2 2 0 0 0 0 4 2 2 0 0 1 0 4H4a2 2 0 0 1 0-4 2 2 0 0 0 0-4z"/><path d="M11 5v14" stroke-dasharray="2 2"/></symbol><symbol id="i-building" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/><path d="M10 21v-4h4v4"/></symbol><symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6z"/></symbol><symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15 20c0-2.8 2-5 5-5"/></symbol><symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></symbol><symbol id="i-megaphone" viewBox="0 0 24 24"><path d="M3 10v4h3l6 4V6l-6 4H3z"/><path d="M14 9a4 4 0 0 1 0 6"/><path d="M17 7a7 7 0 0 1 0 10"/></symbol><symbol id="i-bot" viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M12 8V4"/><circle cx="12" cy="3" r="1"/><circle cx="9" cy="13" r="1.2"/><circle cx="15" cy="13" r="1.2"/><path d="M9 17h6"/></symbol><symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5C4 4.7 4.7 4 5.5 4H12v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M20 5.5c0-.8-.7-1.5-1.5-1.5H12v16h6.5A1.5 1.5 0 0 0 20 18.5z"/></symbol><symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2z"/></symbol><symbol id="i-link" viewBox="0 0 24 24"><path d="M9 15l6-6"/><path d="M11 6l1-1a4 4 0 0 1 5.5 5.5L16 12"/><path d="M13 18l-1 1a4 4 0 0 1-5.5-5.5L8 12"/></symbol><symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"/></symbol><symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M6 3h12M6 21h12M7 3c0 5 4 6 5 6s5-1 5-6M7 21c0-5 4-6 5-6s5 1 5 6"/></symbol><symbol id="i-flag" viewBox="0 0 24 24"><path d="M6 21V4"/><path d="M6 4h11l-2.5 3.5L17 11H6"/></symbol></defs></svg>
 <!-- ═══ INTRO ANIMATION ═══ -->
 <style>
@@ -1419,21 +1448,6 @@ async function requestLegalHubAccess(btn){
   if (error) { btn.disabled = false; msg.textContent = error.message; }
 }
 
-// OAuth is redirect-based: a rejected sign-in (e.g. not on the Legal Hub
-// allowlist, or outside PepsiCo's tenant) comes back as query params on
-// the URL after the redirect, not as a normal function return value.
-(function showOAuthErrorIfAny(){
-  const params = new URLSearchParams(window.location.hash.replace(/^#/, '') || window.location.search);
-  const err = params.get('error_description') || params.get('error');
-  if (err) {
-    window.addEventListener('content-loaded', function once(){
-      window.removeEventListener('content-loaded', once);
-      const msg = document.querySelector('.legal-hub-gate-msg');
-      if (msg) msg.textContent = decodeURIComponent(err.replace(/\+/g, ' '));
-    });
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-})();
 
 // Single source of truth for "which external destinations open in the
 // in-site modal instead of a new tab." Add new domains/paths here only —
@@ -1610,7 +1624,44 @@ async function loadContent() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', loadContent);
+/* ── SITE AUTH GATE ── */
+(function(){
+  var gate = document.getElementById('site-login-gate');
+  var signInBtn = document.getElementById('slgSignInBtn');
+  var errorEl = document.getElementById('slgError');
+  var contentLoaded = false;
+
+  function showGate(){ gate.style.display = 'flex'; }
+  function hideGate(){ gate.style.display = 'none'; }
+
+  // Show any OAuth redirect error (e.g. tenant mismatch) in the gate card
+  var params = new URLSearchParams(window.location.hash.replace(/^#/,'') || window.location.search);
+  var oauthErr = params.get('error_description') || params.get('error');
+  if (oauthErr) {
+    errorEl.textContent = decodeURIComponent(oauthErr.replace(/\+/g,' '));
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  signInBtn.addEventListener('click', async function(){
+    errorEl.textContent = '';
+    signInBtn.disabled = true;
+    var { error } = await sb.auth.signInWithOAuth({
+      provider: 'azure',
+      options: { scopes: 'email', redirectTo: window.location.origin + '/' }
+    });
+    if (error) { signInBtn.disabled = false; errorEl.textContent = error.message; }
+    // On success the browser navigates away immediately — nothing else to do here
+  });
+
+  sb.auth.onAuthStateChange(function(event, session){
+    if (session) {
+      hideGate();
+      if (!contentLoaded) { contentLoaded = true; loadContent(); }
+    } else {
+      showGate();
+    }
+  });
+})();
 document.addEventListener('DOMContentLoaded', function(){
   var y = document.getElementById('footerYear');
   if (y) y.textContent = new Date().getFullYear();
