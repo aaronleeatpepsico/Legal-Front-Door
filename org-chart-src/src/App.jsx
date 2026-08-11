@@ -129,21 +129,18 @@ function OrgChart({ sb, editable }) {
       const isDotted = id.startsWith('dotted-')
       const personId = id.replace(/^(solid|dotted)-/, '')
       const person = people.find(p => p.id === personId)
+      // Only write handle columns if they actually have values (columns may not exist yet)
       const payload = { updated_at: new Date().toISOString() }
       if (isDotted) {
-        payload.manager_id                  = person?.dotted_manager_id || null
-        payload.manager_source_handle       = person?.dotted_manager_source_handle || null
-        payload.manager_target_handle       = person?.dotted_manager_target_handle || null
-        payload.dotted_manager_id           = null
-        payload.dotted_manager_source_handle = null
-        payload.dotted_manager_target_handle = null
+        payload.manager_id    = person?.dotted_manager_id || null
+        payload.dotted_manager_id = null
+        if (person?.dotted_manager_source_handle) payload.manager_source_handle = person.dotted_manager_source_handle
+        if (person?.dotted_manager_target_handle) payload.manager_target_handle = person.dotted_manager_target_handle
       } else {
-        payload.dotted_manager_id           = person?.manager_id || null
-        payload.dotted_manager_source_handle = person?.manager_source_handle || null
-        payload.dotted_manager_target_handle = person?.manager_target_handle || null
-        payload.manager_id                  = null
-        payload.manager_source_handle       = null
-        payload.manager_target_handle       = null
+        payload.dotted_manager_id = person?.manager_id || null
+        payload.manager_id        = null
+        if (person?.manager_source_handle) payload.dotted_manager_source_handle = person.manager_source_handle
+        if (person?.manager_target_handle) payload.dotted_manager_target_handle = person.manager_target_handle
       }
       const { error } = await sb.from(TABLE).update(payload).eq('id', personId)
       if (error) { showToast('Could not toggle line type: ' + error.message); return }
@@ -153,15 +150,10 @@ function OrgChart({ sb, editable }) {
     onDeleteEdge: async id => {
       const isDotted = id.startsWith('dotted-')
       const personId = id.replace(/^(solid|dotted)-/, '')
-      const payload = { updated_at: new Date().toISOString() }
-      if (isDotted) {
-        payload.dotted_manager_id           = null
-        payload.dotted_manager_source_handle = null
-        payload.dotted_manager_target_handle = null
-      } else {
-        payload.manager_id            = null
-        payload.manager_source_handle = null
-        payload.manager_target_handle = null
+      // Only null the manager ID — don't touch handle columns (may not exist in DB yet)
+      const payload = {
+        [isDotted ? 'dotted_manager_id' : 'manager_id']: null,
+        updated_at: new Date().toISOString(),
       }
       const { error } = await sb.from(TABLE).update(payload).eq('id', personId)
       if (error) { showToast('Could not remove line: ' + error.message); return }
