@@ -1169,6 +1169,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 let IS_AUTHENTICATED = false;
 let TRAINING_ITEMS = [];
+let ORG_CHART_PEOPLE = [];
 
 function updateAuthNav(email, isAdmin){
   const adminLink = document.getElementById('navAdminLink');
@@ -1561,7 +1562,7 @@ async function loadContent() {
   const grid = document.getElementById('ouGrid');
   const toolsWrap = document.getElementById('sidebarTools');
   try {
-    const [ousRes, subsRes, linksRes, toolsRes, newsRes, destRes, sessionRes, trainingRes] = await Promise.all([
+    const [ousRes, subsRes, linksRes, toolsRes, newsRes, destRes, sessionRes, trainingRes, peopleRes] = await Promise.all([
       sb.from('operating_units').select('*').order('sort_order'),
       sb.from('subsections').select('*').order('sort_order'),
       sb.from('links').select('*').order('sort_order'),
@@ -1569,11 +1570,13 @@ async function loadContent() {
       sb.from('newsletter_items').select('*').eq('published', true).order('sort_order'),
       sb.from('destinations').select('*'),
       sb.auth.getSession(),
-      sb.from('training_items').select('*').order('sort_order')
+      sb.from('training_items').select('*').order('sort_order'),
+      sb.from('org_chart_people').select('id,name,role,department,location').order('name')
     ]);
     // Training lives on its own page (/training/), not this one — fetched
     // here purely so it's searchable from the homepage search bar too.
     TRAINING_ITEMS = (trainingRes && trainingRes.data) || [];
+    ORG_CHART_PEOPLE = (peopleRes && peopleRes.data || []).filter(function(p){ return p.name; });
     IS_AUTHENTICATED = !!(sessionRes && sessionRes.data && sessionRes.data.session);
     let isAdmin = false;
     if (IS_AUTHENTICATED) {
@@ -1972,15 +1975,23 @@ frame();
 <script src="/org-chart-widget.js"></script>
 <script>
 let _teamChartCtrl = null;
-function openOrgModal(){
+function openOrgModal(personId){
   document.getElementById('omo').classList.add('open');
   document.body.style.overflow='hidden';
   if (!_teamChartCtrl) {
     requestAnimationFrame(() => {
       _teamChartCtrl = OrgChart.mountPage(document.getElementById('teamChartMount'), { editable: false, supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_ANON_KEY });
+      if (personId) {
+        setTimeout(function(){ if (_teamChartCtrl.focusPerson) _teamChartCtrl.focusPerson(personId); }, 1500);
+      }
     });
+  } else {
+    if (personId) {
+      setTimeout(function(){ if (_teamChartCtrl.focusPerson) _teamChartCtrl.focusPerson(personId); }, 100);
+    } else {
+      _teamChartCtrl.refresh();
+    }
   }
-  else { _teamChartCtrl.refresh(); }
 }
 function openFeedbackModal(){document.getElementById('fbo').classList.add('open');document.body.style.overflow='hidden';}
 function closeFeedbackModal(){document.getElementById('fbo').classList.remove('open');document.body.style.overflow='';}
@@ -2072,16 +2083,14 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeOrgMod
       });
     });
 
-    // 4. People in the org chart
-    document.querySelectorAll('#omo .oh').forEach(function(hotspot){
-      const name = hotspot.querySelector('.op-n');
-      const role = hotspot.querySelector('.op-r');
-      if(!name) return;
+    // 4. People in the org chart (indexed from fetched data, not DOM)
+    ORG_CHART_PEOPLE.forEach(function(p){
       items.push({
-        type: 'person', icon: '<svg class="icon"><use href="#i-user"></use></svg>', tag: 'Person',
-        title: name.textContent.trim(),
-        sub: role ? role.textContent.trim() : '',
-        el: hotspot
+        type: 'person', icon: '<svg class="icon"><use href="#i-user"></use></svg>', tag: 'Org Chart',
+        title: p.name,
+        sub: [p.role, p.department, p.location].filter(Boolean).join(' · '),
+        personId: p.id,
+        el: null
       });
     });
 
@@ -2186,9 +2195,8 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeOrgMod
     }
 
     if(item.type === 'person'){
-      const modal = document.getElementById('omo');
-      if(!modal.classList.contains('open')) openOrgModal();
-      expandAncestorsAndGo();
+      openOrgModal(item.personId);
+      return;
     } else if(item.type === 'tool' || item.type === 'ou'){
       // Let the card's own click handler run (toggleChat / openOrgModal / navigation / toggleCard)
       el.click();
