@@ -735,6 +735,10 @@ function linkRowHtml(l){
       '<button class="icon-btn" data-save title="Save">💾</button>' +
       '<button class="icon-btn" data-delete title="Delete">🗑</button>' +
     '</div>' +
+    '<div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;">' +
+      '<span style="font-size:11px;color:var(--text-muted);white-space:nowrap;min-width:130px;">Grey text (below title)</span>' +
+      '<input class="f-sublabel" value="' + escHtml(l.sub_label||'') + '" placeholder="e.g. Contact local team for instructions" style="flex:1;">' +
+    '</div>' +
     '<div class="upload-status" style="grid-column:1/-1;font-size:11px;color:var(--text-muted);"></div>' +
     '</div>';
 }
@@ -758,6 +762,7 @@ function wireLinkRow(row){
       destination_id: destinationId,
       status: row.querySelector('.f-status').value,
       pending_note: row.querySelector('.f-note').value.trim() || null,
+      sub_label: row.querySelector('.f-sublabel').value.trim() || null,
       updated_at: new Date().toISOString(),
     };
     const { error } = await sb.from('links').update(payload).eq('id', id);
