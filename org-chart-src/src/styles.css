@@ -74,15 +74,6 @@
   opacity: 0;
   transition: opacity 0.15s;
 }
-/* Offset source and target handles on the same side so they don't overlap */
-.react-flow__handle-top.oc2-handle    { transform: translateX(-8px) !important; }
-.react-flow__handle-top.oc2-handle ~ .react-flow__handle-top.oc2-handle { transform: translateX(8px) !important; }
-.react-flow__handle-bottom.oc2-handle { transform: translateX(-8px) !important; }
-.react-flow__handle-bottom.oc2-handle ~ .react-flow__handle-bottom.oc2-handle { transform: translateX(8px) !important; }
-.react-flow__handle-left.oc2-handle   { transform: translateY(-8px) !important; }
-.react-flow__handle-left.oc2-handle ~ .react-flow__handle-left.oc2-handle { transform: translateY(8px) !important; }
-.react-flow__handle-right.oc2-handle  { transform: translateY(-8px) !important; }
-.react-flow__handle-right.oc2-handle ~ .react-flow__handle-right.oc2-handle { transform: translateY(8px) !important; }
 
 .react-flow__node:hover .oc2-handle,
 .react-flow__node.selected .oc2-handle { opacity: 1; }

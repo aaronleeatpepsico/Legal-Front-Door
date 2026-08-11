@@ -21,22 +21,14 @@ export default function OrgNode({ id, data, selected }) {
       style={{ '--oc2-accent': team_color || undefined }}
     >
       {SIDES.map(({ id: hid, position }) => (
-        <React.Fragment key={hid}>
-          <Handle
-            type="source"
-            id={`s-${hid}`}
-            position={position}
-            className={`oc2-handle oc2-handle-${hid}${isAdmin ? '' : ' oc2-handle-hidden'}`}
-            isConnectable={!!isAdmin}
-          />
-          <Handle
-            type="target"
-            id={`t-${hid}`}
-            position={position}
-            className={`oc2-handle oc2-handle-${hid}${isAdmin ? '' : ' oc2-handle-hidden'}`}
-            isConnectable={!!isAdmin}
-          />
-        </React.Fragment>
+        <Handle
+          key={hid}
+          type="source"
+          id={hid}
+          position={position}
+          className={`oc2-handle${isAdmin ? '' : ' oc2-handle-hidden'}`}
+          isConnectable={!!isAdmin}
+        />
       ))}
 
       <div className="oc2-card-body">

@@ -41,8 +41,8 @@ function peopleToEdges(people, isAdmin, edgeHandlers) {
         id: `solid-${p.id}`,
         source: p.manager_id,
         target: p.id,
-        sourceHandle: p.manager_source_handle || 's-bottom',
-        targetHandle: p.manager_target_handle || 't-left',
+        sourceHandle: p.manager_source_handle || 'bottom',
+        targetHandle: p.manager_target_handle || 'left',
         type: 'orgEdge',
         data: { lineType: 'solid', isAdmin, ...edgeHandlers },
       })
@@ -52,8 +52,8 @@ function peopleToEdges(people, isAdmin, edgeHandlers) {
         id: `dotted-${p.id}`,
         source: p.dotted_manager_id,
         target: p.id,
-        sourceHandle: p.dotted_manager_source_handle || 's-bottom',
-        targetHandle: p.dotted_manager_target_handle || 't-left',
+        sourceHandle: p.dotted_manager_source_handle || 'bottom',
+        targetHandle: p.dotted_manager_target_handle || 'left',
         type: 'orgEdge',
         data: { lineType: 'dotted', isAdmin, ...edgeHandlers },
       })
@@ -243,8 +243,8 @@ function OrgChart({ sb, editable }) {
     const isD = type === 'dotted'
     const patch = {
       [isD ? 'dotted_manager_id'            : 'manager_id']:            source,
-      [isD ? 'dotted_manager_source_handle' : 'manager_source_handle']: sourceHandle || 's-bottom',
-      [isD ? 'dotted_manager_target_handle' : 'manager_target_handle']: targetHandle || 't-left',
+      [isD ? 'dotted_manager_source_handle' : 'manager_source_handle']: sourceHandle || 'bottom',
+      [isD ? 'dotted_manager_target_handle' : 'manager_target_handle']: targetHandle || 'left',
       updated_at: new Date().toISOString(),
     }
     const { error } = await sb.from(TABLE).update(patch).eq('id', target)
