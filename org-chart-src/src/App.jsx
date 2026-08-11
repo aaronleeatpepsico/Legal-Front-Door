@@ -239,7 +239,16 @@ function OrgChart({ sb, editable }) {
       [isD ? 'dotted_manager_target_handle' : 'manager_target_handle']: targetHandle || 'left',
       updated_at: new Date().toISOString(),
     }
-    const { error } = await sb.from(TABLE).update(patch).eq('id', target)
+    let { error } = await sb.from(TABLE).update(patch).eq('id', target)
+    // If handle columns don't exist yet, retry with just the manager ID
+    if (error?.message?.includes('schema cache') || error?.message?.includes('column')) {
+      const simple = {
+        [isD ? 'dotted_manager_id' : 'manager_id']: source,
+        updated_at: new Date().toISOString(),
+      }
+      const res = await sb.from(TABLE).update(simple).eq('id', target)
+      error = res.error
+    }
     if (error) { showToast('Could not save line: ' + error.message); return }
     showToast(`${isD ? 'Dotted' : 'Solid'} line added`)
     await loadData()
