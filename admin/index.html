@@ -613,8 +613,10 @@ function renderOuDetail(ouId){
     subs.map(sub => {
       const links = LINKS.filter(l => l.subsection_id === sub.id).sort((a,b)=>a.sort_order-b.sort_order);
       return '<div class="sub-block" data-id="' + sub.id + '">' +
-        '<div class="sub-block-header"><span class="drag-handle">\u2807\u2807</span><h3>' + escHtml(sub.name) + '</h3>' +
+        '<div class="sub-block-header"><span class="drag-handle">\u2807\u2807</span>' +
+          '<h3 class="sub-name-heading">' + escHtml(sub.name) + '</h3>' +
           '<div style="display:flex;gap:6px;align-items:center;">' +
+          '<button class="icon-btn btn-sm" data-rename-sub="' + sub.id + '" title="Rename this subsection">✏ Rename</button>' +
           '<button class="icon-btn btn-sm" data-add-link="' + sub.id + '" title="Add link">+ Add link</button>' +
           '<button class="icon-btn btn-sm" data-delete-sub="' + sub.id + '" title="Delete this subsection and all its links">🗑</button>' +
           '</div></div>' +
@@ -627,6 +629,7 @@ function renderOuDetail(ouId){
 
   document.getElementById('ouSaveBtn').addEventListener('click', () => saveOu(ouId));
   document.getElementById('ouDeleteBtn').addEventListener('click', () => deleteOu(ouId));
+  detail.querySelectorAll('[data-rename-sub]').forEach(b => b.addEventListener('click', () => startRenameSubsection(b.dataset.renameSub, ouId)));
   detail.querySelectorAll('[data-add-link]').forEach(b => b.addEventListener('click', () => addLink(b.dataset.addLink)));
   detail.querySelectorAll('[data-delete-sub]').forEach(b => b.addEventListener('click', () => deleteSubsection(b.dataset.deleteSub, ouId)));
   detail.querySelectorAll('.link-row').forEach(wireLinkRow);
@@ -670,6 +673,37 @@ async function deleteOu(ouId){
   await loadContentTab();
   renderOuList();
   document.getElementById('ouDetail').innerHTML = '<div class="empty-hint">Select an operating unit to edit its content.</div>';
+}
+
+function startRenameSubsection(subId, ouId) {
+  const header = document.querySelector('.sub-block[data-id="' + subId + '"] .sub-block-header');
+  if (!header) return;
+  const h3 = header.querySelector('.sub-name-heading');
+  if (!h3 || h3.querySelector('input')) return; // already editing
+  const currentName = h3.textContent.trim();
+  h3.innerHTML =
+    '<input class="sub-rename-input" value="' + currentName.replace(/"/g, '&quot;') + '" style="font-size:13px;font-weight:600;color:var(--pep-navy);border:1px solid var(--border);border-radius:4px;padding:2px 6px;width:180px;">' +
+    '<button class="btn btn-sm" style="margin-left:6px;padding:2px 10px;" data-rename-save>Save</button>' +
+    '<button class="icon-btn btn-sm" style="margin-left:4px;" data-rename-cancel>✕</button>';
+  const input = h3.querySelector('input');
+  input.focus();
+  input.select();
+  async function doSave() {
+    const newName = input.value.trim();
+    if (!newName) { input.focus(); return; }
+    const { error } = await sb.from('subsections').update({ name: newName }).eq('id', subId);
+    if (error) { alert('Rename failed: ' + error.message); return; }
+    await loadContentTab();
+    renderOuDetail(ouId);
+  }
+  h3.querySelector('[data-rename-save]').addEventListener('click', doSave);
+  h3.querySelector('[data-rename-cancel]').addEventListener('click', () => {
+    h3.textContent = currentName;
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') doSave();
+    if (e.key === 'Escape') h3.textContent = currentName;
+  });
 }
 
 async function deleteSubsection(subId, ouId){
