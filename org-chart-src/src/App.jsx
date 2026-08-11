@@ -436,10 +436,10 @@ function OrgChart({ sb, editable, registerFocusPerson }) {
           nodesConnectable={isAdmin && !selectMode}
           elementsSelectable={true}
           selectionOnDrag={isAdmin && selectMode}
-          panOnDrag={editable && !selectMode}
-          zoomOnScroll={editable}
-          zoomOnPinch={editable}
-          zoomOnDoubleClick={editable}
+          panOnDrag={!selectMode}
+          zoomOnScroll={true}
+          zoomOnPinch={true}
+          zoomOnDoubleClick={true}
           panOnScroll={false}
           multiSelectionKeyCode="Shift"
           deleteKeyCode={null}
