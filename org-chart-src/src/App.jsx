@@ -299,7 +299,7 @@ function OrgChart({ sb, editable }) {
           edgeTypes={edgeTypes}
           nodesDraggable={isAdmin && !selectMode}
           nodesConnectable={isAdmin && !selectMode}
-          elementsSelectable={isAdmin}
+          elementsSelectable={true}
           selectionOnDrag={isAdmin && selectMode}
           panOnDrag={!selectMode}
           multiSelectionKeyCode="Shift"
