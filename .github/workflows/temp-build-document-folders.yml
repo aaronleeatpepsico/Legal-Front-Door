@@ -8,6 +8,13 @@ on:
       - 'org-chart-src/**'
       - 'document-folders.js'
       - '.github/workflows/temp-build-document-folders.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'org-chart-src/**'
+      - 'document-folders.js'
+      - '.github/workflows/temp-build-document-folders.yml'
 
 permissions:
   contents: write
