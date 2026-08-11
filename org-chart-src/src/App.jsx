@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   ReactFlow, ReactFlowProvider,
-  useNodesState, useEdgesState,
+  useNodesState,
+  applyEdgeChanges,
   Background, Controls, MiniMap, Panel,
   useReactFlow,
 } from '@xyflow/react'
@@ -68,7 +69,11 @@ function OrgChart({ sb, editable }) {
   const [people, setPeople]           = useState([])
   const [isAdmin, setIsAdmin]         = useState(false)
   const [nodes, setNodes, onNodesChange] = useNodesState([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  const [edges, setEdges] = useState([])
+  // Only allow selection changes from React Flow — never removes (reconnect fires spurious removes)
+  const onEdgesChange = useCallback(changes => {
+    setEdges(eds => applyEdgeChanges(changes.filter(c => c.type === 'select'), eds))
+  }, [])
   const [modal, setModal]             = useState(null)  // { mode, seed }
   const [cardDetail, setCardDetail]   = useState(null)  // person object for detail modal
   const [connectType, setConnectType] = useState(null)  // 'solid' | 'dotted' | null
