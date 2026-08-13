@@ -226,7 +226,6 @@ table.analytics tr:last-child td{border-bottom:none;}
     </a>
     <div class="tabs">
       <button class="tab-btn active" data-tab="content">Content</button>
-      <button class="tab-btn" data-tab="documents">Documents</button>
       <button class="tab-btn" data-tab="orgchart">Org Chart</button>
       <button class="tab-btn" data-tab="tools">Tools</button>
       <button class="tab-btn" data-tab="training">Training</button>
@@ -247,16 +246,6 @@ table.analytics tr:last-child td{border-bottom:none;}
       <div class="content-layout">
         <div class="ou-list" id="ouList"></div>
         <div id="ouDetail"><div class="empty-hint">Select an operating unit to edit its content.</div></div>
-      </div>
-    </div>
-
-    <div class="panel" id="panel-documents">
-      <div class="content-layout">
-        <div class="doc-sidebar">
-          <div class="ou-list" id="docOuList"><div class="empty-hint" style="padding:14px;">Loading…</div></div>
-          <div class="ou-list" id="docSubList"></div>
-        </div>
-        <div id="docTreeContainer"><div class="empty-hint">Select an operating unit and subsection to manage its files.</div></div>
       </div>
     </div>
 
@@ -613,7 +602,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (btn.dataset.tab === 'newsletter') loadNewsletterTab();
     if (btn.dataset.tab === 'legalhub') loadLegalHubTab();
     if (btn.dataset.tab === 'admins') loadAdminsTab();
-    if (btn.dataset.tab === 'documents') loadDocumentsTab();
   });
 });
 
@@ -1535,51 +1523,6 @@ async function loadAnalytics(){
 }
 
 /* ── DOCUMENTS TAB ── */
-let docActiveOuId = null, docActiveSubId = null;
-
-function loadDocumentsTab() {
-  if (!OUS.length) {
-    loadContentTab().then(() => { renderDocOuList(); });
-  } else {
-    renderDocOuList();
-  }
-}
-
-function renderDocOuList() {
-  const el = document.getElementById('docOuList');
-  if (!el) return;
-  el.innerHTML = OUS.map(ou =>
-    '<button class="ou-list-item' + (ou.id === docActiveOuId ? ' active' : '') + '" data-id="' + ou.id + '">' +
-    '<span class="ou-dot" style="background:' + escHtml(ou.color || '#02355A') + '"></span>' +
-    escHtml(ou.name) + '</button>'
-  ).join('') || '<div class="empty-hint" style="padding:14px;">No operating units.</div>';
-  el.querySelectorAll('.ou-list-item').forEach(b => b.addEventListener('click', () => {
-    docActiveOuId = b.dataset.id;
-    docActiveSubId = null;
-    renderDocOuList();
-    renderDocSubList();
-    document.getElementById('docTreeContainer').innerHTML = '<div class="empty-hint">Select a subsection.</div>';
-  }));
-}
-
-function renderDocSubList() {
-  const el = document.getElementById('docSubList');
-  if (!el) return;
-  if (!docActiveOuId) { el.innerHTML = ''; return; }
-  const subs = SUBS.filter(s => s.ou_id === docActiveOuId).sort((a, b) => a.sort_order - b.sort_order);
-  el.innerHTML = subs.length
-    ? subs.map(s =>
-        '<button class="ou-list-item' + (s.id === docActiveSubId ? ' active' : '') + '" data-id="' + s.id + '">' +
-        escHtml(s.name) + '</button>'
-      ).join('')
-    : '<div class="empty-hint" style="padding:12px;">No subsections.</div>';
-  el.querySelectorAll('.ou-list-item').forEach(b => b.addEventListener('click', () => {
-    docActiveSubId = b.dataset.id;
-    renderDocSubList();
-    loadDocTree(docActiveSubId);
-  }));
-}
-
 async function loadInlineDocTree(subId) {
   const treeEl = document.getElementById('sub-docs-tree-' + subId);
   if (!treeEl) return;
