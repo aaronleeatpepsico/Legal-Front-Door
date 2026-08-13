@@ -190,6 +190,19 @@ table.analytics tr:last-child td{border-bottom:none;}
 @media screen and (min-width:1025px) and (max-width:1440px){
   html { zoom: 0.8; }
 }
+
+/* ── Inline docs section inside subsection blocks ── */
+.sub-docs-section{border-top:1px solid var(--border);margin-top:6px;}
+.sub-docs-header{display:flex;align-items:center;gap:8px;padding:8px 18px;cursor:pointer;user-select:none;font-size:12px;font-weight:600;color:var(--text-muted);transition:background var(--t),color var(--t);}
+.sub-docs-header:hover{background:rgba(0,0,0,.025);color:var(--text-body);}
+.sub-docs-header.open{color:var(--pep-navy);}
+.sub-docs-chev{margin-left:auto;font-size:10px;transition:transform .2s;display:inline-block;}
+.sub-docs-header.open .sub-docs-chev{transform:rotate(90deg);}
+.sub-docs-body{display:none;border-top:1px solid var(--border);padding:10px 0 6px;}
+.sub-docs-body.open{display:block;}
+.sub-docs-toolbar{display:flex;gap:6px;padding:0 18px 8px;}
+.sub-docs-tree{padding:0 18px;}
+.sub-docs-empty{font-size:12px;color:var(--text-muted);padding:6px 0;}
 </style>
 </head>
 <body>
@@ -759,6 +772,20 @@ function renderOuDetail(ouId){
           '</div></div>' +
         '<div class="link-rows" data-sub-id="' + sub.id + '">' +
           links.map(l => linkRowHtml(l)).join('') +
+        '</div>' +
+        '<div class="sub-docs-section" data-sub-id="' + sub.id + '">' +
+          '<div class="sub-docs-header" data-docs-sub-id="' + sub.id + '">' +
+            '<span>📁</span><span>Documents</span>' +
+            '<span class="sub-docs-chev">▶</span>' +
+          '</div>' +
+          '<div class="sub-docs-body" id="sub-docs-body-' + sub.id + '">' +
+            '<div class="sub-docs-toolbar">' +
+              '<button class="btn btn-ghost btn-sm" data-docs-action="new-folder" data-docs-sub="' + sub.id + '">📁 New folder</button>' +
+              '<button class="btn btn-ghost btn-sm" data-docs-action="upload"     data-docs-sub="' + sub.id + '">↑ Upload files</button>' +
+              '<button class="btn btn-ghost btn-sm" data-docs-action="upload-folder" data-docs-sub="' + sub.id + '">📂 Upload folder</button>' +
+            '</div>' +
+            '<div class="sub-docs-tree" id="sub-docs-tree-' + sub.id + '"><div class="sub-docs-empty">Click to load files…</div></div>' +
+          '</div>' +
         '</div></div>';
     }).join('') +
     '</div>' +
@@ -776,6 +803,35 @@ function renderOuDetail(ouId){
   enableDragReorder(document.getElementById('subDragZone'), '.sub-block', 'subsections', () => renderOuDetail(ouId));
   detail.querySelectorAll('.link-rows').forEach(zone => {
     enableDragReorder(zone, '.link-row', 'links', () => renderOuDetail(ouId));
+  });
+
+  // Inline docs — toggle open/close & lazy-load tree
+  detail.querySelectorAll('.sub-docs-header').forEach(hdr => {
+    hdr.addEventListener('click', () => {
+      const subId = hdr.dataset.docsSubId;
+      const body  = document.getElementById('sub-docs-body-' + subId);
+      const isOpen = body.classList.contains('open');
+      if (isOpen) {
+        body.classList.remove('open');
+        hdr.classList.remove('open');
+      } else {
+        body.classList.add('open');
+        hdr.classList.add('open');
+        loadInlineDocTree(subId);
+      }
+    });
+  });
+
+  // Inline docs — toolbar buttons
+  detail.querySelectorAll('[data-docs-action]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const action = btn.dataset.docsAction;
+      const subId  = btn.dataset.docsSub;
+      if (action === 'new-folder')     createDocFolder(null, subId);
+      if (action === 'upload')         uploadDocFile(null, subId);
+      if (action === 'upload-folder')  uploadDocFolder(null, subId);
+    });
   });
 }
 
@@ -1524,6 +1580,54 @@ function renderDocSubList() {
   }));
 }
 
+async function loadInlineDocTree(subId) {
+  const treeEl = document.getElementById('sub-docs-tree-' + subId);
+  if (!treeEl) return;
+  treeEl.innerHTML = '<div class="sub-docs-empty">Loading…</div>';
+  const { data, error } = await sb.from('documents').select('*').eq('subsection_id', subId).order('name');
+  if (error) { treeEl.innerHTML = '<div class="sub-docs-empty" style="color:#b02020;">Error: ' + escHtml(error.message) + '</div>'; return; }
+  const docs = data || [];
+  treeEl.innerHTML = docs.length
+    ? renderDocTreeHtml(docs, null)
+    : '<div class="sub-docs-empty">No files yet — use the buttons above to add folders or upload files.</div>';
+  // Wire actions in the inline tree
+  treeEl.querySelectorAll('.doc-fold-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const fId = btn.dataset.folderId;
+      const childrenEl = document.getElementById('dfc-' + fId);
+      if (!childrenEl) return;
+      const open = childrenEl.style.display !== 'none';
+      childrenEl.style.display = open ? 'none' : 'block';
+      btn.textContent = open ? '▶' : '▼';
+      const row = btn.closest('.doc-node-row');
+      if (row) row.querySelector('.doc-file-icon').textContent = open ? '📁' : '📂';
+    });
+  });
+  treeEl.querySelectorAll('[data-action]').forEach(btn => {
+    if (btn.tagName === 'A') return;
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const a = btn.dataset.action;
+      if (a === 'add-folder')    createDocFolder(btn.dataset.id, subId);
+      if (a === 'upload')        uploadDocFile(btn.dataset.id, subId);
+      if (a === 'upload-folder') uploadDocFolder(btn.dataset.id, subId);
+      if (a === 'rename')        renameDocItem(btn.dataset.id, btn.dataset.name, subId);
+      if (a === 'delete')        deleteDocItem(btn.dataset.id, btn.dataset.type, btn.dataset.path, btn.dataset.name, subId);
+      if (a === 'preview')       openAdminDocPreview(btn.dataset.url, btn.dataset.mime, btn.dataset.name);
+    });
+  });
+}
+
+function reloadDocTree(subId) {
+  // Reload whichever view is active: inline (Content tab) or standalone (Documents tab)
+  const inlineBody = document.getElementById('sub-docs-body-' + subId);
+  if (inlineBody && inlineBody.classList.contains('open')) {
+    loadInlineDocTree(subId);
+  } else {
+    reloadDocTree(subId);
+  }
+}
+
 async function loadDocTree(subId) {
   const container = document.getElementById('docTreeContainer');
   container.innerHTML = '<div class="empty-hint">Loading…</div>';
@@ -1645,7 +1749,7 @@ async function createDocFolder(parentId, subId) {
     subsection_id: subId, parent_id: parentId || null, sort_order: 0,
   });
   if (error) { alert('Could not create folder: ' + error.message); return; }
-  loadDocTree(subId);
+  reloadDocTree(subId);
 }
 
 async function uploadDocFile(parentId, subId) {
@@ -1672,7 +1776,7 @@ async function uploadDocFile(parentId, subId) {
       });
     }
     if (failed) alert(failed + ' file(s) failed to upload.');
-    loadDocTree(subId);
+    reloadDocTree(subId);
   };
   input.click();
 }
@@ -1733,7 +1837,7 @@ async function uploadDocFolder(parentId, subId) {
       });
     }
     if (failed) alert(failed + ' file(s) failed to upload.');
-    loadDocTree(subId);
+    reloadDocTree(subId);
   };
   input.click();
 }
@@ -1743,7 +1847,7 @@ async function renameDocItem(id, currentName, subId) {
   if (!newName || !newName.trim() || newName.trim() === currentName) return;
   const { error } = await sb.from('documents').update({ name: newName.trim(), updated_at: new Date().toISOString() }).eq('id', id);
   if (error) { alert('Could not rename: ' + error.message); return; }
-  loadDocTree(subId);
+  reloadDocTree(subId);
 }
 
 async function deleteDocItem(id, type, storagePath, name, subId) {
@@ -1760,7 +1864,7 @@ async function deleteDocItem(id, type, storagePath, name, subId) {
   }
   const { error } = await sb.from('documents').delete().eq('id', id);
   if (error) { alert('Could not delete: ' + error.message); return; }
-  loadDocTree(subId);
+  reloadDocTree(subId);
 }
 
 function collectNestedFilePaths(allDocs, folderId) {
