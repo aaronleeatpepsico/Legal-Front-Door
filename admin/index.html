@@ -771,6 +771,20 @@ function renderOuDetail(ouId){
         '<div class="link-rows" data-sub-id="' + sub.id + '">' +
           links.map(l => linkRowHtml(l)).join('') +
         '</div>' +
+        '<div class="sub-docs-section" data-sub-id="' + sub.id + '">' +
+          '<div class="sub-docs-header" data-docs-sub-id="' + sub.id + '">' +
+            '<span>📁</span><span>Unassigned documents</span>' +
+            '<span class="sub-docs-chev">▶</span>' +
+          '</div>' +
+          '<div class="sub-docs-body" id="sub-docs-body-' + sub.id + '">' +
+            '<div class="sub-docs-toolbar">' +
+              '<button class="btn btn-ghost btn-sm" data-docs-action="new-folder" data-docs-sub="' + sub.id + '">📁 New folder</button>' +
+              '<button class="btn btn-ghost btn-sm" data-docs-action="upload"     data-docs-sub="' + sub.id + '">↑ Upload files</button>' +
+              '<button class="btn btn-ghost btn-sm" data-docs-action="upload-folder" data-docs-sub="' + sub.id + '">📂 Upload folder</button>' +
+            '</div>' +
+            '<div class="sub-docs-tree" id="sub-docs-tree-' + sub.id + '"><div class="sub-docs-empty">Click to load files…</div></div>' +
+          '</div>' +
+        '</div>' +
         '</div>';
     }).join('') +
     '</div>' +
@@ -788,6 +802,35 @@ function renderOuDetail(ouId){
   enableDragReorder(document.getElementById('subDragZone'), '.sub-block', 'subsections', () => renderOuDetail(ouId));
   detail.querySelectorAll('.link-rows').forEach(zone => {
     enableDragReorder(zone, '.link-wrap', 'links', () => renderOuDetail(ouId));
+  });
+
+  // Subsection-level unassigned docs — toggle open/close & lazy-load
+  detail.querySelectorAll('.sub-docs-header').forEach(hdr => {
+    hdr.addEventListener('click', () => {
+      const subId = hdr.dataset.docsSubId;
+      const body  = document.getElementById('sub-docs-body-' + subId);
+      const isOpen = body.classList.contains('open');
+      if (isOpen) {
+        body.classList.remove('open');
+        hdr.classList.remove('open');
+      } else {
+        body.classList.add('open');
+        hdr.classList.add('open');
+        loadInlineDocTree(subId);
+      }
+    });
+  });
+
+  // Subsection-level docs — toolbar buttons
+  detail.querySelectorAll('[data-docs-action]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const action = btn.dataset.docsAction;
+      const subId  = btn.dataset.docsSub;
+      if (action === 'new-folder')    createDocFolder(null, subId);
+      if (action === 'upload')        uploadDocFile(null, subId);
+      if (action === 'upload-folder') uploadDocFolder(null, subId);
+    });
   });
 
   // Per-link docs — toggle open/close & lazy-load tree
@@ -1538,7 +1581,7 @@ async function loadInlineDocTree(subId) {
   const treeEl = document.getElementById('sub-docs-tree-' + subId);
   if (!treeEl) return;
   treeEl.innerHTML = '<div class="sub-docs-empty">Loading…</div>';
-  const { data, error } = await sb.from('documents').select('*').eq('subsection_id', subId).order('name');
+  const { data, error } = await sb.from('documents').select('*').eq('subsection_id', subId).is('link_id', null).order('name');
   if (error) { treeEl.innerHTML = '<div class="sub-docs-empty" style="color:#b02020;">Error: ' + escHtml(error.message) + '</div>'; return; }
   const docs = data || [];
   treeEl.innerHTML = docs.length
