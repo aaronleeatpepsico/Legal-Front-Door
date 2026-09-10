@@ -1755,7 +1755,7 @@ async function loadContent() {
     signInBtn.disabled = true;
     var { error } = await sb.auth.signInWithOAuth({
       provider: 'azure',
-      options: { scopes: 'email', redirectTo: window.location.origin + '/' }
+      options: { scopes: 'email', redirectTo: window.location.href }
     });
     if (error) { signInBtn.disabled = false; errorEl.textContent = error.message; }
     // On success the browser navigates away immediately — nothing else to do here
