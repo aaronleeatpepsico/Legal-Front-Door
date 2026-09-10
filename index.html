@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+  if (window.self !== window.top) {
+    window.top.location.href = window.location.href;
+  }
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>APAC Legal Front Door — PepsiCo</title>
@@ -1222,6 +1227,8 @@ const SUPABASE_ANON_KEY = 'sb_publishable_SumS4TPFIvwTvjk1VdYiwQ_LjVEDQ7l';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, flowType: 'pkce' }
 });
+// Disabled — Dynamics 365 hosting now provides tenant-level auth; re-enable if app-level auth is needed again.
+const AUTH_GATE_ENABLED = false;
 let IS_AUTHENTICATED = false;
 let TRAINING_ITEMS = [];
 let ORG_CHART_PEOPLE = [];
@@ -1521,7 +1528,7 @@ function renderOuPanel(ou, allSubsections, allLinks) {
   // Restricted OU, nothing visible, not signed in → this is almost certainly
   // RLS quietly hiding the content rather than the OU genuinely being empty.
   // Show a sign-in gate instead of a blank panel.
-  const showGate = ou.restricted && subs.length === 0 && !IS_AUTHENTICATED;
+  const showGate = AUTH_GATE_ENABLED && ou.restricted && subs.length === 0 && !IS_AUTHENTICATED;
   const bodyHtml = showGate
     ? '<div class="legal-hub-gate">'
       + '<p>This content is restricted to the wider Legal team. Sign in with your PepsiCo Microsoft account to view it.</p>'
@@ -1760,6 +1767,12 @@ async function loadContent() {
     if (error) { signInBtn.disabled = false; errorEl.textContent = error.message; }
     // On success the browser navigates away immediately — nothing else to do here
   });
+
+  if (!AUTH_GATE_ENABLED) {
+    hideGate();
+    if (!contentLoaded) { contentLoaded = true; loadContent(); }
+    return;
+  }
 
   sb.auth.onAuthStateChange(function(event, session){
     if (session) {

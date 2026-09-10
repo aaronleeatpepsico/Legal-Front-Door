@@ -582,14 +582,13 @@ sb.auth.onAuthStateChange((event, session) => {
 loginBtn.addEventListener('click', async () => {
   loginError.textContent = '';
   loginBtn.disabled = true;
-  const { error } = await sb.auth.signInWithOAuth({
+  const { data, error } = await sb.auth.signInWithOAuth({
     provider: 'azure',
-    options: { scopes: 'email', redirectTo: window.location.origin + '/admin/' }
+    options: { scopes: 'email', redirectTo: window.location.origin + '/admin/', skipBrowserRedirect: true }
   });
-  // On success this navigates away to Microsoft immediately, so there's
-  // nothing further to do here. An error at this point means the redirect
-  // itself couldn't start (e.g. Azure isn't configured in Supabase yet).
-  if (error) { loginBtn.disabled = false; loginError.textContent = error.message; }
+  if (error) { loginBtn.disabled = false; loginError.textContent = error.message; return; }
+  // Navigate at the top-window level so the OAuth redirect breaks out of any enclosing iframe
+  window.top.location.href = data.url;
 });
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
