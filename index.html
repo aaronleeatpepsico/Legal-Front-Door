@@ -936,7 +936,7 @@ header { padding: 8px 0; }
       <a href="/training/">Training</a>
       <a href="#" onclick="openOrgModal();return false;">Our Team</a>
       <a href="#" onclick="toggleChat();return false;">Legal Larry</a>
-      <a href="/admin/" class="nav-admin" id="navAdminLink" style="display:none;" title="">Admin / Sign in</a>
+      <a href="/WebResources/apaclfd_admin" class="nav-admin" id="navAdminLink" style="display:none;" title="">Admin / Sign in</a>
       <a href="#" class="nav-admin" id="navSignOutLink" style="display:none;background:transparent !important;border-color:rgba(255,255,255,0.24) !important;" onclick="signOutOfSite();return false;">Sign out</a>
     </nav>
   </div>
@@ -1239,7 +1239,7 @@ function updateAuthNav(email, isAdmin){
   if (email && isAdmin) {
     adminLink.textContent = 'Admin';
     adminLink.title = 'Signed in as ' + email + ' — go to the Admin panel';
-    adminLink.href = '/admin/';
+    adminLink.href = '/WebResources/apaclfd_admin';
     adminLink.style.display = '';
     signOutLink.style.display = '';
   } else if (email) {
