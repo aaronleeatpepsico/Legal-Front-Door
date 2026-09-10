@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>APAC Legal Front Door — PepsiCo</title>
-<link rel="icon" type="image/x-icon" href="/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="/WebResources/apaclfd_favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/WebResources/apaclfd_favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/WebResources/apaclfd_favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/WebResources/apaclfd_apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,300;0,400;0,500;0,600;0,700;0,900;1,300;1,400&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/org-chart.css">
+<link rel="stylesheet" href="/WebResources/apaclfd_org-chart.css">
 <style>
 /* ─── RESET & ROOT ─── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -676,13 +676,13 @@ nav a:hover { background: rgba(255,255,255,0.18); color: #fff; border-color: rgb
 /* ─── LINK ITEMS ─── */
 .link-group { display: flex; flex-direction: column; gap: 6px; }
 
-.embedded-portal { margin-top: 16px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: #fff; }
+.embedded-portal { margin-top: 16px; margin-left: -28px; margin-right: -28px; border: 1px solid var(--border); border-left: none; border-right: none; border-radius: 0; overflow: hidden; background: #fff; }
 .embedded-portal-label { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #f5f7fa; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--pep-navy); letter-spacing: 0.02em; }
 .embedded-portal-label .icon { width: 14px; height: 14px; opacity: 0.6; }
 .embedded-portal-openlink { margin-left: auto; font-size: 11px; font-weight: 500; color: var(--pep-blue); text-decoration: none; }
 .embedded-portal-openlink:hover { text-decoration: underline; }
-.embedded-portal-frame { display: block; width: 100%; height: 640px; border: none; background: #fff; }
-@media(max-width:600px) { .embedded-portal-frame { height: 520px; } }
+.embedded-portal-frame { display: block; width: 100%; height: 900px; border: none; background: #fff; }
+@media(max-width:600px) { .embedded-portal-frame { height: 700px; } }
 
 /* ── SUBSECTION DOCUMENT TREE ── */
 .sub-docs-section:empty { display: none; }
@@ -2017,7 +2017,7 @@ frame();
 #cbm{
   background:#f5f7fa;border-radius:18px;
   box-shadow:0 2px 8px rgba(0,0,0,0.06), 0 24px 64px rgba(0,0,0,0.14);
-  width:96vw;max-width:1360px;height:92vh;max-height:960px;
+  width:96vw;max-width:1360px;height:95vh;max-height:1100px;
   display:flex;flex-direction:column;overflow:hidden;
   transform:scale(0.97) translateY(8px);
   transition:transform 0.2s cubic-bezier(0.25,0.1,0.25,1);
@@ -2140,7 +2140,7 @@ frame();
   </div>
 </div>
 
-<script src="/org-chart-widget.js"></script>
+<script src="/WebResources/apaclfd_orgchartwidget"></script>
 <script>
 let _teamChartCtrl = null;
 function openOrgModal(personId){
